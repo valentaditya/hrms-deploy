@@ -55,8 +55,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ posi
     if (body.name !== undefined) updatePayload.nama_posisi = body.name;
     if (body.departemen !== undefined) updatePayload.departemen = body.departemen;
     if (body.department !== undefined) updatePayload.departemen = body.department;
-    if (body.level_id !== undefined) updatePayload.level_id = body.level_id;
-    if (body.level !== undefined) updatePayload.level_id = body.level;
     if (body.deskripsi_posisi !== undefined) updatePayload.deskripsi_posisi = body.deskripsi_posisi;
     if (body.deskripsi !== undefined) updatePayload.deskripsi_posisi = body.deskripsi;
     if (body.status_posisi !== undefined) updatePayload.status_posisi = body.status_posisi;
@@ -112,4 +110,4 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
       { status: 500 }
     );
   }
-}
+}

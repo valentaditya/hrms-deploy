@@ -54,18 +54,17 @@ export async function POST(request: Request) {
     
     const namaPosisi = body.nama_posisi || body.name || body.title;
     const departemen = body.departemen || body.department;
-    const levelId = body.level_id || body.level;
     const deskripsi = body.deskripsi_posisi || body.deskripsi || body.description;
     const statusPosisi = body.status_posisi || body.status || 'Active';
-    const positionCode = body.position_code || body.kode_posisi || `POS-${Math.floor(1000 + Math.random() * 9000)}`;
+    // const positionCode = body.position_code || body.kode_posisi || `POS-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    if (!namaPosisi || !departemen || !levelId) {
+    if (!namaPosisi || !departemen) {
       return NextResponse.json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
-          details: [{ field: 'all', message: 'Nama posisi, departemen, dan level_id/level wajib diisi' }]
+          details: [{ field: 'all', message: 'Nama posisi dan departemen wajib diisi' }]
         }
       }, { status: 400 });
     }
@@ -73,12 +72,11 @@ export async function POST(request: Request) {
     const payload: Record<string, any> = {
       nama_posisi: namaPosisi,
       departemen: departemen,
-      level_id: levelId,
       status_posisi: statusPosisi,
     };
 
     if (deskripsi !== undefined) payload.deskripsi_posisi = deskripsi;
-    if (positionCode !== undefined) payload.position_code = positionCode;
+    // if (positionCode !== undefined) payload.position_code = positionCode;
 
     const { data, error } = await supabase
       .from('d1_job_positions')

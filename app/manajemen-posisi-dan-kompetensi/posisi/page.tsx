@@ -26,9 +26,6 @@ export interface PositionItem {
   name?: string;
   departemen?: string;
   department?: string;
-  // level_jabatan?: string;
-  level_id?: string;
-  level?: string;
   deskripsi_posisi?: string;
   deskripsi?: string;
   status_posisi?: "Active" | "Inactive";
@@ -43,9 +40,6 @@ function getNamaPosisi(pos: PositionItem) {
 function getDepartemen(pos: PositionItem) {
   return pos.departemen || pos.department || "";
 }
-// function getLevelJabatan(pos: PositionItem) {
-//   return pos.level_jabatan || pos.level_id || pos.level || "";
-// }
 function getDeskripsi(pos: PositionItem) {
   return pos.deskripsi_posisi || pos.deskripsi || "";
 }
@@ -58,15 +52,6 @@ export const DEPARTMENTS = [
   "Department of Human Capital and Culture",
   "Department of Commercial and Strategic Client Partnership",
 ] as const;
-
-export const LEVELS = [
-  "Entry Level / Staff",
-  "Senior Staff / Specialist",
-  "Supervisor",
-  "Manager",
-  "Senior Manager",
-  "Director",
-];
 
 function PosisiContent() {
   const { viewRole } = usePosisiKompetensiRole();
@@ -320,7 +305,6 @@ function PosisiContent() {
                 <tr>
                   <th className="px-4 py-3.5">Kode / Nama Posisi</th>
                   <th className="px-4 py-3.5">Departemen</th>
-                  {/* <th className="px-4 py-3.5">Level Jabatan</th> */}
                   <th className="px-4 py-3.5">Status</th>
                   <th className="px-4 py-3.5 text-center">Aksi</th>
                 </tr>
@@ -335,9 +319,6 @@ function PosisiContent() {
                     <td className="max-w-[240px] truncate px-4 py-3.5 text-[#3f4940]" title={getDepartemen(item)}>
                       {getDepartemen(item)}
                     </td>
-                    {/* <td className="px-4 py-3.5 font-medium text-[#1e3765]">
-                      {getLevelJabatan(item)}
-                    </td> */}
                     <td className="px-4 py-3.5">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
@@ -410,7 +391,6 @@ function PosisiContent() {
           initialValues={{
             nama_posisi: getNamaPosisi(editItem),
             departemen: getDepartemen(editItem),
-            // level_jabatan: getLevelJabatan(editItem),
             deskripsi: getDeskripsi(editItem),
             status_posisi: getStatus(editItem),
           }}
@@ -469,7 +449,6 @@ function PositionFormModal({
   initialValues?: {
     nama_posisi?: string;
     departemen?: string;
-    // level_jabatan?: string;
     deskripsi?: string;
     status_posisi?: "Active" | "Inactive";
   };
@@ -478,7 +457,6 @@ function PositionFormModal({
 }) {
   const [namaPosisi, setNamaPosisi] = useState(initialValues?.nama_posisi || "");
   const [departemen, setDepartemen] = useState(initialValues?.departemen || DEPARTMENTS[0]);
-  // const [levelJabatan, setLevelJabatan] = useState(initialValues?.level_jabatan || LEVELS[0]);
   const [deskripsi, setDeskripsi] = useState(initialValues?.deskripsi || "");
   const [statusPosisi, setStatusPosisi] = useState<"Active" | "Inactive">(
     initialValues?.status_posisi || "Active"
@@ -505,7 +483,6 @@ function PositionFormModal({
     await onSubmit({
       nama_posisi: namaPosisi.trim(),
       departemen,
-      // level_id: levelJabatan,
       deskripsi_posisi: deskripsi.trim() || undefined,
       status_posisi: statusPosisi,
     });
@@ -552,20 +529,6 @@ function PositionFormModal({
                 <option key={dept} value={dept}>{dept}</option>
               ))}
             </select>
-          </div>
-          <div>
-            {/* <label className="block font-bold text-[#3f4940] mb-1">
-              Level Jabatan <span className="text-[#d64545]">*</span>
-            </label> */}
-            {/* <select
-              value={levelJabatan}
-              onChange={(e) => setLevelJabatan(e.target.value)}
-              className="w-full rounded-lg border border-[#becabd]/60 bg-white px-3 py-2.5 outline-none focus:border-[#069494]"
-            >
-              {LEVELS.map((lvl) => (
-                <option key={lvl} value={lvl}>{lvl}</option>
-              ))}
-            </select> */}
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -644,11 +607,7 @@ function PositionDetailModal({ item, onClose }: { item: PositionItem; onClose: (
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Departemen</span>
             <p className="font-semibold text-[#121b2e]">{getDepartemen(item)}</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {/* <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Level Jabatan</span>
-              <p className="font-semibold text-[#1e3765]">{getLevelJabatan(item)}</p>
-            </div> */}
+          <div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Status</span>
               <div>
