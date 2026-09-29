@@ -6,35 +6,29 @@ export async function GET(request: Request, { params }: { params: Promise<{ posi
     const supabase = getSupabaseApiClient();
     const { position_id } = await params;
 
-    // Ambil data posisi
-    const { data: position, error: posError } = await supabase
-      .from('d1_job_positions')
-      .select('*')
-      .eq('id', position_id)
-      .single();
+    const { data, error } = await supabase
+      .from('d1_position_competency_map')
+      .select(`
+        competency_id,
+        minimum_level,
+        is_required,
+        d1_competencies ( competency_name )
+      `)
+      .eq('position_id', position_id);
 
-    if (posError || !position) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'Posisi tidak ditemukan' } },
-        { status: 404 }
-      );
-    }
+    if (error) throw error;
 
-    // Ambil relasi (Competencies, Certifications, KPIs) secara paralel
-    const [compReq, certReq, kpiReq] = await Promise.all([
-      supabase.from('d1_position_competency_map').select('*, d1_competencies(*)').eq('position_id', position_id),
-      supabase.from('d1_position_certifications').select('*').eq('position_id', position_id),
-      supabase.from('d1_kpi_definitions').select('*').eq('position_id', position_id)
-    ]);
+    // Formatting data agar sesuai dengan struktur respons FR-D1-005
+    const formattedData = (data || []).map((item: any) => ({
+      competency_id: item.competency_id,
+      competency_name: item.d1_competencies?.competency_name || null,
+      minimum_level: item.minimum_level,
+      is_required: item.is_required
+    }));
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...position,
-        competencies: compReq.data || [],
-        certifications: certReq.data || [],
-        kpis: kpiReq.data || []
-      }
+      data: formattedData
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -44,66 +38,45 @@ export async function GET(request: Request, { params }: { params: Promise<{ posi
   }
 }
 
-export async function PUT(request: Request, { params }: { params: Promise<{ position_id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ position_id: string }> }) {
   try {
     const supabase = getSupabaseApiClient();
     const { position_id } = await params;
     const body = await request.json();
 
-    const updatePayload: Record<string, any> = {};
-    if (body.nama_posisi !== undefined) updatePayload.nama_posisi = body.nama_posisi;
-    if (body.name !== undefined) updatePayload.nama_posisi = body.name;
-    if (body.departemen !== undefined) updatePayload.departemen = body.departemen;
-    if (body.department !== undefined) updatePayload.departemen = body.department;
-    if (body.deskripsi_posisi !== undefined) updatePayload.deskripsi_posisi = body.deskripsi_posisi;
-    if (body.deskripsi !== undefined) updatePayload.deskripsi_posisi = body.deskripsi;
-    if (body.status_posisi !== undefined) updatePayload.status_posisi = body.status_posisi;
-    if (body.status !== undefined) updatePayload.status_posisi = body.status;
-    if (body.updated_at !== undefined) updatePayload.updated_at = new Date().toISOString();
+    if (!body.competency_id || body.minimum_level === undefined) {
+      return NextResponse.json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'competency_id dan minimum_level wajib diisi' }
+      }, { status: 400 });
+    }
 
     const { data, error } = await supabase
-      .from('d1_job_positions')
-      .update(updatePayload)
-      .eq('id', position_id)
+      .from('d1_position_competency_map')
+      .insert([{
+        position_id: position_id,
+        competency_id: body.competency_id,
+        minimum_level: body.minimum_level,
+        is_required: body.is_required !== undefined ? body.is_required : true
+      }])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'CONFLICT', message: 'Kompetensi ini sudah menjadi persyaratan posisi ini' }
+        }, { status: 409 });
+      }
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Position updated successfully',
+      message: 'Competency added successfully',
       data: data
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(request: Request, context: { params: Promise<{ position_id: string }> }) {
-  return PUT(request, context);
-}
-
-export async function DELETE(request: Request, { params }: { params: Promise<{ position_id: string }> }) {
-  try {
-    const supabase = getSupabaseApiClient();
-    const { position_id } = await params;
-
-    // Soft delete sesuai FR-D1-001.8
-    const { error } = await supabase
-      .from('d1_job_positions')
-      .update({ status_posisi: 'Inactive' })
-      .eq('id', position_id);
-
-    if (error) throw error;
-
-    return NextResponse.json({
-      success: true,
-      message: 'Position deleted (soft-delete) successfully'
-    });
+    }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } },
