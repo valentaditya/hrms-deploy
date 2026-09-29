@@ -1,32 +1,33 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseApiClient } from '@/utils/supabase/api';
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ position_id: string; competency_id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ position_id: string }> }) {
   try {
     const supabase = getSupabaseApiClient();
-    const { position_id, competency_id } = await params;
-    const body = await request.json();
-
-    const updatePayload: Record<string, any> = {};
-    if (body.minimum_level !== undefined) updatePayload.minimum_level = body.minimum_level;
-    if (body.is_required !== undefined) updatePayload.is_required = body.is_required;
+    const { position_id } = await params;
 
     const { data, error } = await supabase
       .from('d1_position_competency_map')
-      .update(updatePayload)
-      .match({ position_id, competency_id })
-      .select()
-      .single();
+      .select(`
+        competency_id,
+        minimum_level,
+        is_required,
+        d1_competencies ( competency_name )
+      `)
+      .eq('position_id', position_id);
 
     if (error) throw error;
 
+    const formattedData = (data || []).map((item: any) => ({
+      competency_id: item.competency_id,
+      competency_name: item.d1_competencies?.competency_name || null,
+      minimum_level: item.minimum_level,
+      is_required: item.is_required
+    }));
+
     return NextResponse.json({
       success: true,
-      message: 'Competency requirement updated successfully',
-      data: data
+      data: formattedData
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -36,32 +37,45 @@ export async function PUT(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ position_id: string; competency_id: string }> }
-) {
-  return PUT(request, context);
-}
-
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ position_id: string; competency_id: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ position_id: string }> }) {
   try {
     const supabase = getSupabaseApiClient();
-    const { position_id, competency_id } = await params;
+    const { position_id } = await params;
+    const body = await request.json();
 
-    const { error } = await supabase
+    if (!body.competency_id || body.minimum_level === undefined) {
+      return NextResponse.json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'competency_id dan minimum_level wajib diisi' }
+      }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
       .from('d1_position_competency_map')
-      .delete()
-      .match({ position_id, competency_id });
+      .insert([{
+        position_id,
+        competency_id: body.competency_id,
+        minimum_level: body.minimum_level,
+        is_required: body.is_required !== undefined ? body.is_required : true
+      }])
+      .select()
+      .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'CONFLICT', message: 'Kompetensi ini sudah menjadi persyaratan posisi ini' }
+        }, { status: 409 });
+      }
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Competency removed successfully'
-    });
+      message: 'Competency added successfully',
+      data
+    }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } },

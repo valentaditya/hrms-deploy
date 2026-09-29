@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 
 type SidebarProps = {
+  isOpen?: boolean;
+  onClose?: () => void;
   userName?: string;
   userRole?: string;
   userInitials?: string;
@@ -102,7 +104,7 @@ function PlannedD1Item({ label }: { label: string }) {
   );
 }
 
-export default function Sidebar({ userName, userRole, userInitials, onSignOut, isSigningOut = false }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, userName, userRole, userInitials, onSignOut, isSigningOut = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isPublicRoute = pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth/");
@@ -119,7 +121,8 @@ export default function Sidebar({ userName, userRole, userInitials, onSignOut, i
     "/manajemen-posisi-dan-kompetensi/gap-analysis",
     "/manajemen-posisi-dan-kompetensi/laporan",
   ].includes(pathname);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isInternalSidebarOpen, setIsInternalSidebarOpen] = useState(false);
+  const isSidebarOpen = isOpen ?? isInternalSidebarOpen;
   const [isHrmsOpen, setIsHrmsOpen] = useState(true);
   const [isD3Open, setIsD3Open] = useState(false);
   const [isD1Open, setIsD1Open] = useState<boolean | null>(null);
@@ -181,6 +184,11 @@ export default function Sidebar({ userName, userRole, userInitials, onSignOut, i
     }
   }
 
+  function closeSidebar() {
+    if (isOpen === undefined) setIsInternalSidebarOpen(false);
+    onClose?.();
+  }
+
   if (isPublicRoute) return null;
 
   return (
@@ -193,7 +201,7 @@ export default function Sidebar({ userName, userRole, userInitials, onSignOut, i
         <div className="flex items-center gap-3 px-2">
           <div className="grid size-9 place-items-center rounded-lg bg-[#069494] shadow-sm"><BriefcaseBusiness size={19} className="text-white" /></div>
           <div><p className="text-xl font-bold tracking-[-0.5px] text-white">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
-          <button type="button" onClick={() => setIsSidebarOpen(false)} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
+          <button type="button" onClick={closeSidebar} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
         </div>
 
         <nav className="mt-8 space-y-1.5 text-sm font-semibold">
@@ -279,14 +287,16 @@ export default function Sidebar({ userName, userRole, userInitials, onSignOut, i
         </div>
       </aside>
 
-      <button
-        type="button"
-        onClick={() => setIsSidebarOpen(true)}
-        className="fixed left-4 top-4 z-30 rounded-lg bg-[#0f2342] p-2 text-white lg:hidden"
-        aria-label="Buka navigasi"
-      >
-        <Menu size={20} />
-      </button>
+      {isOpen === undefined && (
+        <button
+          type="button"
+          onClick={() => setIsInternalSidebarOpen(true)}
+          className="fixed left-4 top-4 z-30 rounded-lg bg-[#0f2342] p-2 text-white lg:hidden"
+          aria-label="Buka navigasi"
+        >
+          <Menu size={20} />
+        </button>
+      )}
     </>
   );
 }
