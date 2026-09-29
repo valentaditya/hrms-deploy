@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, FormEvent } from "react";
+import { Pagination } from "@/components/Pagination";
 import PosisiKompetensiShell, {
   usePosisiKompetensiRole,
 } from "@/components/posisi-kompetensi/PosisiKompetensiShell";
@@ -61,6 +62,7 @@ function PosisiContent() {
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
   const [toast, setToast] = useState<string>("");
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -111,6 +113,14 @@ function PosisiContent() {
       return matchSearch && matchDept && matchStatus;
     });
   }, [positions, search, departmentFilter, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, departmentFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPositions.length / 10));
+  const page = Math.min(currentPage, totalPages);
+  const pagePositions = filteredPositions.slice((page - 1) * 10, page * 10);
 
   const handleCreatePosition = async (body: Record<string, string | undefined>) => {
     try {
@@ -299,6 +309,7 @@ function PosisiContent() {
             <AlertCircle size={18} /> {error}
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-[#becabd]/35 bg-[#f7f8ff] text-[11px] font-bold uppercase tracking-wider text-[#4d5f81]">
@@ -310,7 +321,7 @@ function PosisiContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#becabd]/25">
-                {filteredPositions.map((item) => (
+                {pagePositions.map((item) => (
                   <tr key={item.id} className="transition hover:bg-[#f7f8ff]">
                     <td className="px-4 py-3.5">
                       <p className="font-bold text-[#121b2e]">{getNamaPosisi(item)}</p>
@@ -372,6 +383,11 @@ function PosisiContent() {
               </tbody>
             </table>
           </div>
+          <div className="flex flex-col gap-3 border-t border-[#becabd]/35 px-4 py-3 text-xs text-[#4d5f81] sm:flex-row sm:items-center sm:justify-between">
+            <span>Menampilkan <b className="text-[#121b2e]">{filteredPositions.length ? (page - 1) * 10 + 1 : 0}–{Math.min(page * 10, filteredPositions.length)}</b> dari <b className="text-[#121b2e]">{filteredPositions.length}</b> posisi</span>
+            {filteredPositions.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} />}
+          </div>
+          </>
         )}
       </div>
 

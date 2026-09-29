@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Pagination from "@/components/Pagination";
 import PosisiKompetensiShell from "@/components/posisi-kompetensi/PosisiKompetensiShell";
 import {
   AlertTriangle,
@@ -56,6 +57,7 @@ function GapAnalysisContent() {
   const [search, setSearch] = useState("");
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Load positions list
   useEffect(() => {
@@ -97,6 +99,7 @@ function GapAnalysisContent() {
           recommendation: g.recommendation,
         }));
         setGapData(flatItems);
+        setCurrentPage(1);
       } else {
         setError(json.error?.message || "Gagal menjalankan gap analysis.");
       }
@@ -121,6 +124,14 @@ function GapAnalysisContent() {
       return matchSearch && matchDept && matchStatus;
     });
   }, [gapData, search, selectedDept, selectedStatus, positions, selectedPositionId]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedDept, selectedStatus, selectedPositionId]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / 10));
+  const page = Math.min(currentPage, totalPages);
+  const pageItems = filteredItems.slice((page - 1) * 10, page * 10);
 
   const totalKompeten = filteredItems.filter((i) => i.gap >= 0).length;
   const totalSedang = filteredItems.filter((i) => i.gap === -1).length;
@@ -295,7 +306,7 @@ function GapAnalysisContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#becabd]/25">
-                {filteredItems.map((item, idx) => (
+                {pageItems.map((item, idx) => (
                   <tr key={`${item.employee_id}-${item.competency_id}-${idx}`} className="transition hover:bg-[#f7f8ff]">
                     <td className="px-4 py-3.5">
                       <p className="font-bold text-[#121b2e]">{item.employee_name}</p>
@@ -345,6 +356,10 @@ function GapAnalysisContent() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="flex flex-col gap-3 border-t border-[#becabd]/35 px-4 py-3 text-xs text-[#4d5f81] sm:flex-row sm:items-center sm:justify-between">
+            <span>Menampilkan <b className="text-[#121b2e]">{filteredItems.length ? (page - 1) * 10 + 1 : 0}–{Math.min(page * 10, filteredItems.length)}</b> dari <b className="text-[#121b2e]">{filteredItems.length}</b> data</span>
+            {filteredItems.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} />}
           </div>
         </div>
       )}

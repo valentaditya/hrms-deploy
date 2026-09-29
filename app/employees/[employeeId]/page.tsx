@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import HrmsShell from "@/components/hrms/HrmsShell";
 import HrmsStatusPill from "@/components/hrms/HrmsStatusPill";
+import EmployeeAttendanceTable from "@/components/hrms/EmployeeAttendanceTable";
 import type {
   EmployeeAttendance,
   EmployeeCertification,
@@ -285,24 +286,7 @@ export default async function EmployeeProfilePage({ params }: EmployeeProfilePag
 
         <ProfileSection title="Attendance History">
           {attendances.length === 0 ? <EmptyState>Belum ada data attendance.</EmptyState> : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b border-[#D9E2FC] text-xs font-bold uppercase tracking-wide text-slate-500">
-                  <tr><th className="px-3 py-3">Date</th><th className="px-3 py-3">Clock In</th><th className="px-3 py-3">Clock Out</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Notes</th></tr>
-                </thead>
-                <tbody className="divide-y divide-[#D9E2FC]/60 text-slate-700">
-                  {attendances.map((attendance, index) => (
-                    <tr key={`${attendance.date ?? "attendance"}-${index}`}>
-                      <td className="px-3 py-3 font-medium">{formatDate(attendance.date)}</td>
-                      <td className="px-3 py-3">{formatTime(attendance.clock_in)}</td>
-                      <td className="px-3 py-3">{formatTime(attendance.clock_out)}</td>
-                      <td className="px-3 py-3"><HrmsStatusPill value={attendance.status} /></td>
-                      <td className="px-3 py-3">{displayValue(attendance.notes)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <EmployeeAttendanceTable attendances={attendances} />
           )}
         </ProfileSection>
       </section>

@@ -84,3 +84,120 @@ export async function POST(request: Request, { params }: { params: Promise<{ pos
     );
   }
 }
+
+export async function PUT(request: Request, { params }: { params: Promise<{ position_id: string }> }) {
+  try {
+    const supabase = getSupabaseApiClient();
+    const { position_id } = await params;
+    const body = await request.json();
+    const updatePayload: Record<string, string> = {};
+
+    const namaPosisi = body.nama_posisi ?? body.name ?? body.title;
+    const departemen = body.departemen ?? body.department;
+    const deskripsi = body.deskripsi_posisi ?? body.deskripsi ?? body.description;
+    const statusPosisi = body.status_posisi ?? body.status;
+
+    if (namaPosisi !== undefined) {
+      if (typeof namaPosisi !== 'string' || namaPosisi.trim().length < 3 || namaPosisi.trim().length > 100) {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Nama posisi wajib diisi antara 3 - 100 karakter' }
+        }, { status: 400 });
+      }
+      updatePayload.nama_posisi = namaPosisi.trim();
+    }
+    if (departemen !== undefined) {
+      if (typeof departemen !== 'string' || !departemen.trim()) {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Departemen wajib diisi' }
+        }, { status: 400 });
+      }
+      updatePayload.departemen = departemen.trim();
+    }
+    if (deskripsi !== undefined) {
+      if (typeof deskripsi !== 'string' || deskripsi.length > 500) {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Deskripsi tidak boleh melebihi 500 karakter' }
+        }, { status: 400 });
+      }
+      updatePayload.deskripsi_posisi = deskripsi.trim();
+    }
+    if (statusPosisi !== undefined) {
+      if (statusPosisi !== 'Active' && statusPosisi !== 'Inactive') {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Status posisi tidak valid' }
+        }, { status: 400 });
+      }
+      updatePayload.status_posisi = statusPosisi;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Tidak ada data posisi untuk diperbarui' }
+      }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from('d1_job_positions')
+      .update(updatePayload)
+      .eq('id', position_id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'CONFLICT', message: 'Posisi dengan nama/kode ini sudah ada' }
+        }, { status: 409 });
+      }
+      throw error;
+    }
+    if (!data) {
+      return NextResponse.json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Posisi tidak ditemukan' }
+      }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Position updated successfully', data });
+  } catch (err: any) {
+    return NextResponse.json(
+      { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ position_id: string }> }) {
+  try {
+    const supabase = getSupabaseApiClient();
+    const { position_id } = await params;
+
+    const { data, error } = await supabase
+      .from('d1_job_positions')
+      .update({ status_posisi: 'Inactive' })
+      .eq('id', position_id)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      return NextResponse.json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Posisi tidak ditemukan' }
+      }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Position deactivated successfully', data });
+  } catch (err: any) {
+    return NextResponse.json(
+      { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } },
+      { status: 500 }
+    );
+  }
+}

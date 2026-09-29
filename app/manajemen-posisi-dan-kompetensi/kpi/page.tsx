@@ -117,27 +117,34 @@ function KpiContent() {
   }, [kpiGroups, selectedDepartment]);
 
   const handleSaveKpi = async (posId: string, kpis: KpiRow[]) => {
-    // Delete existing KPIs for this position first then re-insert
+    const invalidRow = kpis.findIndex((kpi) =>
+      !getKpiName(kpi).trim() || !getKpiTarget(kpi).trim() ||
+      !Number.isFinite(getKpiWeight(kpi)) || getKpiWeight(kpi) <= 0 || getKpiWeight(kpi) > 100
+    );
+    if (invalidRow !== -1) {
+      showNotification(`Lengkapi nama, target, dan bobot KPI pada baris ${invalidRow + 1}.`);
+      return;
+    }
+
+    const totalWeight = kpis.reduce((sum, kpi) => sum + getKpiWeight(kpi), 0);
+    if (totalWeight !== 100) {
+      showNotification(`Total bobot KPI harus 100%. Saat ini ${totalWeight}%.`);
+      return;
+    }
+
     try {
-      // Fetch existing KPI IDs for this position
       const existingRes = await fetch(`/api/d1/kpi?position_id=${posId}`);
       const existingJson = await existingRes.json();
-      if (existingJson.success) {
-        // Delete each
-        await Promise.all(
-          (existingJson.data || []).map((k: any) =>
-            fetch(`/api/d1/kpi/${k.id}`, { method: "DELETE" })
-          )
-        );
+      if (!existingRes.ok || !existingJson.success) {
+        showNotification(`Gagal memuat KPI lama: ${existingJson.error?.message || "server tidak merespons"}`);
+        return;
       }
 
-      // Insert new KPIs
       const res = await fetch("/api/d1/kpi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           position_id: posId,
-          validate_total_weight: false,
           kpis: kpis.map((k) => ({
             kpi_name: getKpiName(k),
             kpi_target: getKpiTarget(k),
@@ -146,14 +153,25 @@ function KpiContent() {
         }),
       });
       const json = await res.json();
-      if (json.success) {
-        await fetchAll();
-        setIsModalOpen(false);
-        setEditPositionId(null);
-        const posName = positions.find((p) => p.id === posId)?.nama_posisi || positions.find((p) => p.id === posId)?.name || posId;
-        showNotification(`Definisi KPI untuk "${posName}" berhasil disimpan.`);
-      } else {
+      if (!res.ok || !json.success) {
         showNotification(`Error: ${json.error?.message}`);
+        return;
+      }
+
+      const deleteResults = await Promise.all(
+        (existingJson.data || []).map((k: any) =>
+          fetch(`/api/d1/kpi/${k.id}`, { method: "DELETE" })
+        )
+      );
+      await fetchAll();
+      setIsModalOpen(false);
+      setEditPositionId(null);
+
+      const posName = positions.find((p) => p.id === posId)?.nama_posisi || positions.find((p) => p.id === posId)?.name || posId;
+      if (deleteResults.some((result) => !result.ok)) {
+        showNotification(`KPI baru tersimpan, tetapi KPI lama untuk "${posName}" belum seluruhnya terhapus.`);
+      } else {
+        showNotification(`Definisi KPI untuk "${posName}" berhasil disimpan.`);
       }
     } catch {
       showNotification("Gagal menyimpan KPI.");
@@ -346,7 +364,9 @@ function MultiStepKpiModal({
   );
 
   const totalWeight = useMemo(() => kpis.reduce((s, k) => s + getKpiWeight(k), 0), [kpis]);
-  const isValid = totalWeight === 100 && kpis.length > 0 && kpis.every((k) => getKpiName(k).trim() && getKpiTarget(k).trim() && getKpiWeight(k) > 0);
+  const hasCompleteKpiDetails = kpis.length > 0 && kpis.every((k) => getKpiName(k).trim() && getKpiTarget(k).trim());
+  const hasValidWeights = totalWeight === 100 && kpis.every((k) => getKpiWeight(k) > 0);
+  const isValid = hasCompleteKpiDetails && hasValidWeights;
 
   // Auto-save draft to localStorage every 30s
   useEffect(() => {
@@ -424,7 +444,7 @@ function MultiStepKpiModal({
                 >
                   {positions.map((pos) => (
                     <option key={pos.id} value={pos.id}>
-                      {pos.id} — {pos.nama_posisi || pos.name}
+                      {pos.nama_posisi || pos.name}
                     </option>
                   ))}
                 </select>
@@ -496,7 +516,7 @@ function MultiStepKpiModal({
 
               {/* Weight Validation */}
               <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                totalWeight === 100 ? "bg-[#eaf7f0] border-[#bbf0d2] text-[#16834b]"
+                isValid ? "bg-[#eaf7f0] border-[#bbf0d2] text-[#16834b]"
                 : totalWeight > 100 ? "bg-[#fff1f2] border-[#fecaca] text-[#d64545]"
                 : "bg-[#fef9c3] border-[#fde68a] text-[#b7791f]"
               }`}>
@@ -505,9 +525,11 @@ function MultiStepKpiModal({
                   <div>
                     <p className="font-bold">Total Bobot Saat Ini: {totalWeight}%</p>
                     <p className="text-[11px]">
-                      {totalWeight === 100 ? "Valid! Total bobot sudah pas 100%."
+                      {!hasCompleteKpiDetails ? "Isi nama KPI dan target pada setiap baris untuk mengaktifkan tombol simpan."
+                        : isValid ? "Valid! Data KPI lengkap dan total bobot sudah pas 100%."
                         : totalWeight > 100 ? `Kelebihan ${totalWeight - 100}%. Kurangi bobot KPI.`
-                        : `Kurang ${100 - totalWeight}%. Tambahkan bobot KPI hingga 100%.`}
+                        : totalWeight < 100 ? `Kurang ${100 - totalWeight}%. Tambahkan bobot KPI hingga 100%.`
+                        : "Setiap KPI harus memiliki bobot lebih dari 0%."}
                     </p>
                   </div>
                 </div>

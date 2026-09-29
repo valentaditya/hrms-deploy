@@ -14,8 +14,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ kpi_
     if (body.target !== undefined) updatePayload.kpi_target = body.target;
     if (body.kpi_weight !== undefined) updatePayload.kpi_weight = body.kpi_weight;
     if (body.weight !== undefined) updatePayload.kpi_weight = body.weight;
-    if (body.measurement_unit !== undefined) updatePayload.measurement_unit = body.measurement_unit;
-    if (body.target_period !== undefined) updatePayload.target_period = body.target_period;
+    // if (body.measurement_unit !== undefined) updatePayload.measurement_unit = body.measurement_unit;
+    // if (body.target_period !== undefined) updatePayload.target_period = body.target_period;
 
     const { data, error } = await supabase
       .from('d1_kpi_definitions')

@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import UserInput from "@/components/UserInput";
 import CustomDropdown from "@/components/CustomDropdown";
-import Pagination from "@/components/Pagination";
 import CustomButton from "@/components/CustomButton";
 import StatusBadge from "@/components/StatusBadge";
 import CustomTable, { Column } from "@/components/CustomTable";
@@ -151,13 +150,6 @@ export default function HomePage() {
         />
       </div>
 
-      <div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={24}
-          onPageChange={(page) => setCurrentPage(page)}
-        />
-      </div>
 
       <div className="w-full max-w-[340px] flex flex-col gap-3">
         <CustomButton variant="primary">Button</CustomButton>
@@ -180,10 +172,9 @@ export default function HomePage() {
           selectedIds={selectedIds}
           onSelectChange={(ids) => setSelectedIds(ids)}
           currentPage={currentPage}
-          totalPages={24}
           onPageChange={(page) => setCurrentPage(page)}
-          totalItems={120}
-          itemsPerPage={5}
+          totalItems={sampleEmployees.length}
+          itemsPerPage={10}
         />
       </div>
     </div>

@@ -18,7 +18,6 @@ export interface CustomTableProps<T> {
   selectable?: boolean;
   selectedIds?: (string | number)[];
   onSelectChange?: (selectedIds: (string | number)[]) => void;
-  // Pagination props
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
@@ -29,10 +28,7 @@ export interface CustomTableProps<T> {
 }
 
 function formatCellValue(value: unknown): React.ReactNode {
-  if (typeof value === "string" || typeof value === "number") {
-    return value;
-  }
-
+  if (typeof value === "string" || typeof value === "number") return value;
   return "-";
 }
 
@@ -44,56 +40,47 @@ export function CustomTable<T extends { id?: string | number }>({
   selectedIds = [],
   onSelectChange,
   currentPage = 1,
-  totalPages = 24,
+  totalPages,
   onPageChange,
-  totalItems = 120,
-  itemsPerPage = 5,
+  totalItems,
+  itemsPerPage = 10,
   showPagination = true,
   className = "",
 }: CustomTableProps<T>) {
   const [internalSelected, setInternalSelected] = useState<(string | number)[]>(selectedIds);
-
+  const resolvedTotalItems = totalItems ?? data.length;
+  const pageSize = Math.max(1, itemsPerPage);
+  const resolvedTotalPages = totalPages ?? Math.max(1, Math.ceil(resolvedTotalItems / pageSize));
+  const resolvedCurrentPage = Math.min(Math.max(1, currentPage), resolvedTotalPages);
+  const pageStart = (resolvedCurrentPage - 1) * pageSize;
+  const pageData = data.slice(pageStart, pageStart + pageSize);
   const currentSelected = onSelectChange ? selectedIds : internalSelected;
+  const pageIds = pageData.map((item, index) => keyExtractor(item, pageStart + index));
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      const allIds = data.map((item, idx) => keyExtractor(item, idx));
-      if (onSelectChange) {
-        onSelectChange(allIds);
-      } else {
-        setInternalSelected(allIds);
-      }
-    } else {
-      if (onSelectChange) {
-        onSelectChange([]);
-      } else {
-        setInternalSelected([]);
-      }
-    }
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.checked
+      ? [...new Set([...currentSelected, ...pageIds])]
+      : currentSelected.filter((id) => !pageIds.includes(id));
+
+    if (onSelectChange) onSelectChange(next);
+    else setInternalSelected(next);
   };
 
   const handleSelectRow = (id: string | number) => {
-    let next: (string | number)[];
-    if (currentSelected.includes(id)) {
-      next = currentSelected.filter((item) => item !== id);
-    } else {
-      next = [...currentSelected, id];
-    }
-    if (onSelectChange) {
-      onSelectChange(next);
-    } else {
-      setInternalSelected(next);
-    }
+    const next = currentSelected.includes(id)
+      ? currentSelected.filter((item) => item !== id)
+      : [...currentSelected, id];
+
+    if (onSelectChange) onSelectChange(next);
+    else setInternalSelected(next);
   };
 
-  const isAllSelected = data.length > 0 && data.every((item, idx) => currentSelected.includes(keyExtractor(item, idx)));
+  const isAllSelected = pageIds.length > 0 && pageIds.every((id) => currentSelected.includes(id));
 
   return (
     <div className={`w-full bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden font-sans ${className}`}>
-      {/* Table Content Wrapper */}
       <div className="w-full overflow-x-auto">
         <table className="w-full text-left border-collapse">
-          {/* Table Header matching D1 / Pagination dark slate aesthetic */}
           <thead>
             <tr className="bg-[#F8FAFC] border-b border-slate-200">
               {selectable && (
@@ -106,47 +93,37 @@ export function CustomTable<T extends { id?: string | number }>({
                   />
                 </th>
               )}
-              {columns.map((col) => (
+              {columns.map((column) => (
                 <th
-                  key={col.key}
-                  style={{ width: col.width }}
+                  key={column.key}
+                  style={{ width: column.width }}
                   className={`px-5 py-3.5 text-xs font-bold text-slate-600 uppercase tracking-wider ${
-                    col.align === "center"
+                    column.align === "center"
                       ? "text-center"
-                      : col.align === "right"
-                      ? "text-right"
-                      : "text-left"
+                      : column.align === "right"
+                        ? "text-right"
+                        : "text-left"
                   }`}
                 >
-                  {col.header}
+                  {column.header}
                 </th>
               ))}
             </tr>
           </thead>
-
-          {/* Table Body */}
           <tbody className="divide-y divide-slate-100 text-sm">
             {data.length === 0 ? (
               <tr>
-                <td
-                  colSpan={columns.length + (selectable ? 1 : 0)}
-                  className="px-6 py-10 text-center text-slate-400 font-medium"
-                >
+                <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-6 py-10 text-center text-slate-400 font-medium">
                   Tidak ada data ditemukan
                 </td>
               </tr>
             ) : (
-              data.map((row, idx) => {
-                const id = keyExtractor(row, idx);
+              pageData.map((row, index) => {
+                const id = keyExtractor(row, pageStart + index);
                 const isSelected = currentSelected.includes(id);
 
                 return (
-                  <tr
-                    key={id}
-                    className={`transition-colors duration-100 hover:bg-slate-50/90 ${
-                      isSelected ? "bg-slate-50/70" : "bg-white"
-                    }`}
-                  >
+                  <tr key={id} className={`transition-colors duration-100 hover:bg-slate-50/90 ${isSelected ? "bg-slate-50/70" : "bg-white"}`}>
                     {selectable && (
                       <td className="px-4 py-3.5 text-center">
                         <input
@@ -157,20 +134,20 @@ export function CustomTable<T extends { id?: string | number }>({
                         />
                       </td>
                     )}
-                    {columns.map((col) => (
+                    {columns.map((column) => (
                       <td
-                        key={col.key}
+                        key={column.key}
                         className={`px-5 py-3.5 text-slate-800 ${
-                          col.align === "center"
+                          column.align === "center"
                             ? "text-center"
-                            : col.align === "right"
-                            ? "text-right"
-                            : "text-left"
+                            : column.align === "right"
+                              ? "text-right"
+                              : "text-left"
                         }`}
                       >
-                        {col.render
-                          ? col.render(row, idx)
-                          : formatCellValue(row[col.key as keyof T])}
+                        {column.render
+                          ? column.render(row, pageStart + index)
+                          : formatCellValue(row[column.key as keyof T])}
                       </td>
                     ))}
                   </tr>
@@ -181,22 +158,18 @@ export function CustomTable<T extends { id?: string | number }>({
         </table>
       </div>
 
-      {/* Table Footer with Pagination matching Pagination Component */}
       <div className="bg-[#FAFBFD] border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="text-xs text-slate-500 font-medium">
-          Menampilkan <span className="font-semibold text-slate-800">{totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span> sampai{" "}
-          <span className="font-semibold text-slate-800">{Math.min(currentPage * itemsPerPage, totalItems)}</span> dari{" "}
-          <span className="font-semibold text-slate-800">{totalItems}</span> data
+          Menampilkan <span className="font-semibold text-slate-800">{resolvedTotalItems > 0 ? pageStart + 1 : 0}</span> sampai{" "}
+          <span className="font-semibold text-slate-800">{Math.min(pageStart + pageSize, resolvedTotalItems)}</span> dari{" "}
+          <span className="font-semibold text-slate-800">{resolvedTotalItems}</span> data
         </div>
-
         {showPagination && (
-          <div className="flex items-center">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={onPageChange}
-            />
-          </div>
+          <Pagination
+            currentPage={resolvedCurrentPage}
+            totalPages={resolvedTotalPages}
+            onPageChange={onPageChange}
+          />
         )}
       </div>
     </div>
