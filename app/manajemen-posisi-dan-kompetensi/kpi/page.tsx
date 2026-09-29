@@ -172,11 +172,11 @@ function KpiContent() {
       <div className="flex flex-col justify-between gap-4 border-b border-[#d9e2fc] pb-5 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#121b2e]">
-            Definisi KPI & Total Bobot (D1-002)
+            Definisi KPI & Total Bobot
           </h1>
-          <p className="mt-1 text-sm text-[#4d5f81]">
+          {/* <p className="mt-1 text-sm text-[#4d5f81]">
             Susun indikator kinerja utama per posisi dengan validasi real-time bobot 100%.
-          </p>
+          </p> */}
         </div>
         {viewRole === "manager" ? (
           <button
@@ -230,7 +230,7 @@ function KpiContent() {
               <div>
                 <div className="flex items-start justify-between gap-2 border-b border-[#becabd]/35 pb-3">
                   <div>
-                    <span className="text-[10px] font-bold text-[#069494]">{item.position_id}</span>
+                    {/* <span className="text-[10px] font-bold text-[#069494]">{item.position_id}</span> */}
                     <h3 className="text-base font-bold text-[#121b2e]">{item.positionName}</h3>
                     <p className="text-[11px] text-[#4d5f81]">{item.department}</p>
                   </div>
@@ -292,7 +292,7 @@ function KpiContent() {
                     onClick={() => { setEditPositionId(item.position_id); setIsModalOpen(true); }}
                     className="font-bold text-[#069494] hover:underline"
                   >
-                    Edit KPI &rarr;
+                    Edit KPI 
                   </button>
                 </div>
               )}
@@ -385,9 +385,9 @@ function MultiStepKpiModal({
       <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl overflow-hidden text-xs">
         <div className="flex items-center justify-between border-b border-[#d9e2fc] px-6 py-4 bg-[#0f2342] text-white">
           <div>
-            <h2 className="text-base font-bold">Multi-step Form Definisi KPI (D1-002)</h2>
+            <h2 className="text-base font-bold">Multi-step Form Definisi KPI </h2>
             <p className="text-[11px] text-[#d9e2fc]/80">
-              Step {step} dari 2 — {step === 1 ? "Pilih Posisi Jabatan" : "Definisi Indikator & Bobot"}
+              Step {step} dari 2 - {step === 1 ? "Pilih Posisi Jabatan" : "Definisi Indikator & Bobot"}
             </p>
           </div>
           <button onClick={onClose} className="rounded p-1 text-[#d9e2fc] hover:bg-white/10">
@@ -437,7 +437,7 @@ function MultiStepKpiModal({
               <div className="flex justify-end gap-2 pt-4 border-t border-[#d9e2fc]">
                 <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 font-bold text-[#4d5f81] hover:bg-[#f1f3ff]">Batal</button>
                 <button type="button" onClick={() => setStep(2)} className="rounded-lg bg-[#16834b] px-4 py-2 font-bold text-white hover:bg-[#006838]">
-                  Lanjut ke Step 2 &rarr;
+                  Lanjut ke Step 2
                 </button>
               </div>
             </div>

@@ -72,21 +72,21 @@ function LaporanContent() {
   const reports = [
     {
       id: "DATABASE_POSISI",
-      title: "Database Posisi Pekerjaan (D1-001)",
+      title: "Database Posisi Pekerjaan",
       description: "Ekspor seluruh master data posisi, departemen, level hirarki, serta status keaktifan.",
       icon: Layers,
       count: "5 Posisi Aktif",
     },
     {
       id: "KPI_BOBOT",
-      title: "Definisi KPI & Total Bobot (D1-002)",
+      title: "Definisi KPI & Total Bobot",
       description: "Ekspor rincian indikator kinerja per posisi beserta target dan persentase bobot 100%.",
       icon: Award,
       count: "3 Set Posisi KPI",
     },
     {
       id: "GAP_ANALYSIS",
-      title: "Matriks Analisis Kesenjangan (D1-003)",
+      title: "Matriks Analisis Kesenjangan",
       description: "Ekspor data perbandingan standar posisi dengan kompetensi aktual karyawan.",
       icon: LineChart,
       count: "7 Matriks Evaluasi",
@@ -107,7 +107,7 @@ function LaporanContent() {
       <div className="flex flex-col justify-between gap-4 border-b border-[#d9e2fc] pb-5 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#121b2e]">
-            Laporan & Ekspor Data (D1-006)
+            Laporan & Ekspor Data 
           </h1>
           <p className="mt-1 text-sm text-[#4d5f81]">
             Unduh laporan posisi, KPI, dan matriks gap analysis dalam format CSV, Excel, dan PDF.

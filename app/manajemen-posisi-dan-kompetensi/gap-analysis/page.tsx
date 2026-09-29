@@ -132,15 +132,15 @@ function GapAnalysisContent() {
       <div className="flex flex-col justify-between gap-4 border-b border-[#d9e2fc] pb-5 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#121b2e]">
-            Analisis Kesenjangan Kompetensi (D1-003)
+            Analisis Kesenjangan Kompetensi 
           </h1>
           <p className="mt-1 text-sm text-[#4d5f81]">
             Matriks perbandingan standar level posisi dengan data aktual karyawan.
           </p>
         </div>
-        <span className="rounded-lg bg-[#eaf7f0] border border-[#bbf0d2] px-3 py-1.5 text-xs font-bold text-[#16834b]">
+        {/* <span className="rounded-lg bg-[#eaf7f0] border border-[#bbf0d2] px-3 py-1.5 text-xs font-bold text-[#16834b]">
           Connected to DB
-        </span>
+        </span> */}
       </div>
 
       {/* Run Gap Analysis Panel */}
