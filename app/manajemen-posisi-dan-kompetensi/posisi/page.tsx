@@ -8,6 +8,7 @@ import PosisiKompetensiShell, {
 import {
   Briefcase,
   CheckCircle2,
+  Download,
   Edit2,
   Eye,
   Filter,
@@ -20,6 +21,7 @@ import {
   Award,
   Loader2,
 } from "lucide-react";
+import ExportPositionsModal from "@/components/posisi-kompetensi/ExportPositionsModal";
 
 export interface PositionItem {
   id: string;
@@ -66,6 +68,7 @@ function PosisiContent() {
   const [toast, setToast] = useState<string>("");
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [viewItem, setViewItem] = useState<PositionItem | null>(null);
   const [editItem, setEditItem] = useState<PositionItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -204,18 +207,28 @@ function PosisiContent() {
             Kelola data posisi jabatan, struktur departemen, dan tingkat hirarki di PT Andima Transportindo.
           </p>
         </div>
-        {viewRole === "manager" ? (
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => setIsAddOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#16834b] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#006838]"
+            type="button"
+            onClick={() => setIsExportOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#becabd]/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#121b2e] shadow-sm transition hover:bg-[#f7f8ff] hover:border-[#1e3765]/40"
           >
-            <Plus size={16} /> Tambah Posisi Baru
+            <Download size={15} className="text-[#1e3765]" />
+            Download
           </button>
-        ) : (
-          <span className="rounded-lg bg-[#f1f3ff] px-3 py-2 text-xs font-semibold text-[#4d5f81]">
-            👁️ Mode Baca Saja
-          </span>
-        )}
+          {viewRole === "manager" ? (
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#16834b] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#006838]"
+            >
+              <Plus size={16} /> Tambah Posisi Baru
+            </button>
+          ) : (
+            <span className="rounded-lg bg-[#f1f3ff] px-3 py-2 text-xs font-semibold text-[#4d5f81]">
+              👁️ Mode Baca Saja
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -450,6 +463,15 @@ function PosisiContent() {
             </div>
           </div>
         </div>
+      )}
+      {/* Modal: Export / Download */}
+      {isExportOpen && (
+        <ExportPositionsModal
+          allPositions={positions}
+          filteredPositions={filteredPositions}
+          onClose={() => setIsExportOpen(false)}
+          onSuccessToast={showNotification}
+        />
       )}
     </div>
   );

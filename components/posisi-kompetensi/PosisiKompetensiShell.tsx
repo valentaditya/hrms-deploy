@@ -7,11 +7,6 @@ import {
   ChevronRight,
   CircleHelp,
   Menu,
-  Search,
-  Award,
-  Briefcase,
-  FileSpreadsheet,
-  LineChart,
 } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import Sidebar from "@/components/Sidebar";
@@ -30,6 +25,13 @@ const PosisiKompetensiContext = createContext<PosisiKompetensiContextType>({
 
 export const usePosisiKompetensiRole = () => useContext(PosisiKompetensiContext);
 
+const PAGE_TITLES: Record<string, string> = {
+  "/manajemen-posisi-dan-kompetensi/posisi": "Daftar Posisi Pekerjaan",
+  "/manajemen-posisi-dan-kompetensi/kpi": "Definisi KPI",
+  "/manajemen-posisi-dan-kompetensi/gap-analysis": "Analisis Kesenjangan (Gap)",
+  "/manajemen-posisi-dan-kompetensi/laporan": "Laporan & Ekspor",
+};
+
 export default function PosisiKompetensiShell({
   children,
 }: {
@@ -38,34 +40,6 @@ export default function PosisiKompetensiShell({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [viewRole, setViewRole] = useState<ViewRole>("manager");
-  const [query, setQuery] = useState("");
-
-  const tabs = [
-    {
-      id: "posisi",
-      label: "Daftar Posisi Pekerjaan",
-      href: "/manajemen-posisi-dan-kompetensi/posisi",
-      icon: Briefcase,
-    },
-    {
-      id: "kpi",
-      label: "Definisi KPI",
-      href: "/manajemen-posisi-dan-kompetensi/kpi",
-      icon: Award,
-    },
-    {
-      id: "gap-analysis",
-      label: "Analisis Kesenjangan (Gap)",
-      href: "/manajemen-posisi-dan-kompetensi/gap-analysis",
-      icon: LineChart,
-    },
-    {
-      id: "laporan",
-      label: "Laporan & Ekspor",
-      href: "/manajemen-posisi-dan-kompetensi/laporan",
-      icon: FileSpreadsheet,
-    },
-  ];
 
   return (
     <PosisiKompetensiContext.Provider value={{ viewRole, setViewRole }}>
@@ -92,7 +66,7 @@ export default function PosisiKompetensiShell({
                 <span className="text-[#4d5f81]">Manajemen Posisi & Kompetensi</span>
                 <ChevronRight size={13} className="text-[#4d5f81]/50" />
                 <span className="truncate font-bold text-[#006838]">
-                  {tabs.find((t) => t.href === pathname)?.label || "Modul"}
+                  {PAGE_TITLES[pathname] || "Modul"}
                 </span>
               </div>
             </div>
@@ -138,30 +112,6 @@ export default function PosisiKompetensiShell({
               </div>
             </div>
           </header>
-
-          {/* Sub Navigation Bar */}
-          <div className="border-b border-[#d9e2fc] bg-white px-4 sm:px-6">
-            <div className="mx-auto flex max-w-[1600px] space-x-1 overflow-x-auto">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = pathname === tab.href;
-                return (
-                  <Link
-                    key={tab.id}
-                    href={tab.href}
-                    className={`flex items-center gap-2 border-b-2 px-4 py-3.5 text-xs font-bold transition whitespace-nowrap ${
-                      isActive
-                        ? "border-[#069494] text-[#006838]"
-                        : "border-transparent text-[#4d5f81] hover:border-[#d9e2fc] hover:text-[#121b2e]"
-                    }`}
-                  >
-                    <Icon size={16} />
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Role preview alert banner if Employee */}
           {viewRole === "employee" && (

@@ -6,6 +6,7 @@ import PosisiKompetensiShell from "@/components/posisi-kompetensi/PosisiKompeten
 import {
   AlertTriangle,
   CheckCircle2,
+  Download,
   Filter,
   LineChart,
   Search,
@@ -15,6 +16,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
+import ExportGapModal from "@/components/posisi-kompetensi/ExportGapModal";
 
 const DEPARTMENTS = [
   "Department of Finance and Accounting",
@@ -22,7 +24,7 @@ const DEPARTMENTS = [
   "Department of Commercial and Strategic Client Partnership",
 ];
 
-interface GapItem {
+export interface GapItem {
   employee_id: string;
   employee_name: string;
   position_id: string;
@@ -58,6 +60,13 @@ function GapAnalysisContent() {
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [toast, setToast] = useState<string>("");
+
+  const showNotification = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3500);
+  };
 
   // Load positions list
   useEffect(() => {
@@ -139,6 +148,13 @@ function GapAnalysisContent() {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-lg bg-[#0f2342] px-4 py-3 text-sm font-semibold text-white shadow-xl">
+          <CheckCircle2 size={17} className="text-[#77d8cd]" />
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 border-b border-[#d9e2fc] pb-5 sm:flex-row sm:items-end">
         <div>
@@ -149,9 +165,18 @@ function GapAnalysisContent() {
             Matriks perbandingan standar level posisi dengan data aktual karyawan.
           </p>
         </div>
-        {/* <span className="rounded-lg bg-[#eaf7f0] border border-[#bbf0d2] px-3 py-1.5 text-xs font-bold text-[#16834b]">
-          Connected to DB
-        </span> */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setIsExportOpen(true)}
+            disabled={gapData.length === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#becabd]/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#121b2e] shadow-sm transition hover:bg-[#f7f8ff] hover:border-[#1e3765]/40 disabled:opacity-50"
+            title={gapData.length === 0 ? "Jalankan analisis terlebih dahulu untuk mengunduh" : "Download Laporan Gap Analysis"}
+          >
+            <Download size={15} className="text-[#1e3765]" />
+            Download
+          </button>
+        </div>
       </div>
 
       {/* Run Gap Analysis Panel */}
@@ -370,6 +395,16 @@ function GapAnalysisContent() {
           <LineChart size={36} className="text-[#becabd]" />
           <p>Pilih posisi dan klik <b>&quot;Jalankan Analisis&quot;</b> untuk melihat matriks gap kompetensi.</p>
         </div>
+      )}
+
+      {/* Export / Download Modal */}
+      {isExportOpen && (
+        <ExportGapModal
+          allGaps={gapData}
+          filteredGaps={filteredItems}
+          onClose={() => setIsExportOpen(false)}
+          onSuccessToast={showNotification}
+        />
       )}
     </div>
   );

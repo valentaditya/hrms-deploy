@@ -8,6 +8,7 @@ import {
   Award,
   CheckCircle2,
   ChevronRight,
+  Download,
   Plus,
   Trash2,
   X,
@@ -17,6 +18,7 @@ import {
   BarChart3,
   Loader2,
 } from "lucide-react";
+import ExportKpiModal from "@/components/posisi-kompetensi/ExportKpiModal";
 
 export interface KpiRow {
   id?: string;
@@ -36,7 +38,7 @@ interface PositionOption {
   department?: string;
 }
 
-interface PositionKpiGroup {
+export interface PositionKpiGroup {
   position_id: string;
   positionName: string;
   department: string;
@@ -57,6 +59,7 @@ function KpiContent() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>("ALL");
   const [toast, setToast] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [editPositionId, setEditPositionId] = useState<string | null>(null);
 
   const DEPARTMENTS = [
@@ -196,18 +199,28 @@ function KpiContent() {
             Susun indikator kinerja utama per posisi dengan validasi real-time bobot 100%.
           </p> */}
         </div>
-        {viewRole === "manager" ? (
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => { setEditPositionId(null); setIsModalOpen(true); }}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#16834b] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#006838]"
+            type="button"
+            onClick={() => setIsExportOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#becabd]/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#121b2e] shadow-sm transition hover:bg-[#f7f8ff] hover:border-[#1e3765]/40"
           >
-            <Plus size={16} /> Atur / Tambah Definisi KPI
+            <Download size={15} className="text-[#1e3765]" />
+            Download
           </button>
-        ) : (
-          <span className="rounded-lg bg-[#f1f3ff] px-3 py-2 text-xs font-semibold text-[#4d5f81]">
-            👁️ Mode Baca Saja
-          </span>
-        )}
+          {viewRole === "manager" ? (
+            <button
+              onClick={() => { setEditPositionId(null); setIsModalOpen(true); }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#16834b] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#006838]"
+            >
+              <Plus size={16} /> Atur / Tambah Definisi KPI
+            </button>
+          ) : (
+            <span className="rounded-lg bg-[#f1f3ff] px-3 py-2 text-xs font-semibold text-[#4d5f81]">
+              👁️ Mode Baca Saja
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Department Filter */}
@@ -327,6 +340,17 @@ function KpiContent() {
           existingGroups={kpiGroups}
           onClose={() => { setIsModalOpen(false); setEditPositionId(null); }}
           onSave={handleSaveKpi}
+        />
+      )}
+
+      {/* Export / Download Modal */}
+      {isExportOpen && (
+        <ExportKpiModal
+          allGroups={kpiGroups}
+          filteredGroups={filteredGroups}
+          selectedDepartment={selectedDepartment}
+          onClose={() => setIsExportOpen(false)}
+          onSuccessToast={showNotification}
         />
       )}
     </div>

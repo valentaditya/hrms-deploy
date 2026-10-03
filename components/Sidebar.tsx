@@ -2,9 +2,11 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import Logo from "@/components/image/Logo.png";
 import {
   BriefcaseBusiness,
   ChevronDown,
@@ -19,16 +21,19 @@ import {
   ShieldCheck,
   UsersRound,
   X,
+  SquareTerminal,
+  Users
+
 } from "lucide-react";
 
 type SidebarProps = {
-  isOpen?: boolean;
-  onClose?: () => void;
   userName?: string;
   userRole?: string;
   userInitials?: string;
   onSignOut?: () => void;
   isSigningOut?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
 };
 
 type NavigationItemProps = {
@@ -104,7 +109,7 @@ function PlannedD1Item({ label }: { label: string }) {
   );
 }
 
-export default function Sidebar({ isOpen, onClose, userName, userRole, userInitials, onSignOut, isSigningOut = false }: SidebarProps) {
+export default function Sidebar({ userName, userRole, userInitials, onSignOut, isSigningOut = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isPublicRoute = pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth/");
@@ -121,8 +126,7 @@ export default function Sidebar({ isOpen, onClose, userName, userRole, userIniti
     "/manajemen-posisi-dan-kompetensi/gap-analysis",
     "/manajemen-posisi-dan-kompetensi/laporan",
   ].includes(pathname);
-  const [isInternalSidebarOpen, setIsInternalSidebarOpen] = useState(false);
-  const isSidebarOpen = isOpen ?? isInternalSidebarOpen;
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isHrmsOpen, setIsHrmsOpen] = useState(true);
   const [isD3Open, setIsD3Open] = useState(false);
   const [isD1Open, setIsD1Open] = useState<boolean | null>(null);
@@ -184,11 +188,6 @@ export default function Sidebar({ isOpen, onClose, userName, userRole, userIniti
     }
   }
 
-  function closeSidebar() {
-    if (isOpen === undefined) setIsInternalSidebarOpen(false);
-    onClose?.();
-  }
-
   if (isPublicRoute) return null;
 
   return (
@@ -199,9 +198,11 @@ export default function Sidebar({ isOpen, onClose, userName, userRole, userIniti
         }`}
       >
         <div className="flex items-center gap-3 px-2">
-          <div className="grid size-9 place-items-center rounded-lg bg-[#069494] shadow-sm"><BriefcaseBusiness size={19} className="text-white" /></div>
+          <div>
+            <Image src={Logo} alt="ANDIMA logo" width={40} height={40} className="h-9 w-9 " priority />
+          </div>
           <div><p className="text-xl font-bold tracking-[-0.5px] text-white">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
-          <button type="button" onClick={closeSidebar} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
+          <button type="button" onClick={() => setIsSidebarOpen(false)} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
         </div>
 
         <nav className="mt-8 space-y-1.5 text-sm font-semibold">
@@ -211,10 +212,35 @@ export default function Sidebar({ isOpen, onClose, userName, userRole, userIniti
           <div>
             <button
               type="button"
-              onClick={() => setIsHrmsOpen((value) => !value)}
-              className="flex w-full items-center justify-between rounded-lg bg-[#069494] px-3 py-2.5 text-white shadow-sm"
+              // onClick={() => setIsHrmsOpen((value) => !value)}
+              className="flex w-full items-center justify-between rounded-lg mb-2 px-3 py-2.5 text-white shadow-sm"
             >
-              <span className="flex items-center gap-3"><ClipboardList size={17} /> HRMS</span>
+              <span className="flex items-center gap-3"><LayoutDashboard  size={17} /> Dashboard</span>
+              {/* <ChevronDown size={16} className={`transition-transform ${isHrmsOpen ? "rotate-0" : "-rotate-90"}`} /> */}
+            </button>
+            <button
+              type="button"
+              // onClick={() => setIsHrmsOpen((value) => !value)}
+              className="flex w-full items-center justify-between rounded-lg  mb-2 px-3 py-2.5 text-white shadow-sm"
+            >
+              <span className="flex items-center gap-3"><X size={17} /> CCR</span>
+              <ChevronDown size={16} className={`transition-transform -rotate-90`} />
+            </button>
+            <button
+              type="button"
+              // onClick={() => setIsHrmsOpen((value) => !value)}
+              className="flex w-full items-center justify-between rounded-lg  mb-2 px-3 py-2.5 text-white shadow-sm"
+            >
+              <span className="flex items-center gap-3"><X size={17} /> CRM</span>
+              <ChevronDown size={16} className={`transition-transform -rotate-90`} />
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setIsHrmsOpen((value) => !value)}
+              className="flex w-full items-center justify-between rounded-lg bg-[#0550D7] mb-2 px-3 py-2.5 text-white shadow-sm"
+            >
+              <span className="flex items-center gap-3"><Users  size={17} /> HRMS</span>
               <ChevronDown size={16} className={`transition-transform ${isHrmsOpen ? "rotate-0" : "-rotate-90"}`} />
             </button>
             {isHrmsOpen && (
@@ -270,33 +296,43 @@ export default function Sidebar({ isOpen, onClose, userName, userRole, userIniti
 
                   
                 </div>
+                
               </div>
+
+              
+              
             )}
+            <button
+              type="button"
+              // onClick={() => setIsHrmsOpen((value) => !value)}
+              className="flex w-full items-center justify-between rounded-lg mb-2 px-3 py-2.5 text-white shadow-sm"
+            >
+              <span className="flex items-center gap-3"><SquareTerminal size={17} /> MID</span>
+              <ChevronDown size={16} className={`transition-transform -rotate-90`} />
+            </button>
           </div>
           {/* <NavigationItem icon={<ShieldCheck size={16} />} label="MID" suffix={<ChevronRight size={15} />} /> */}
         </nav>
 
         <div className="mt-auto space-y-3">
           {/* <div className="rounded-lg border border-[#d9e2fc]/15 bg-[#1e3765] p-3"><div className="flex items-center gap-2 text-[11px] font-semibold text-white"><CircleHelp size={14} className="text-[#77d8cd]" /> Customer Support</div><p className="mt-1 text-[10px] text-[#d9e2fc]/80">24/7 Operations Line</p></div> */}
-          <NavigationItem icon={<Settings size={15} />} label="Settings" />
-          <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-            <span className="grid size-7 place-items-center rounded-full bg-[#16834b] text-[10px] font-bold text-white">{account.initials}</span>
-            <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-white">{account.name}</p><p className="text-[10px] text-[#d9e2fc]/75">{account.role}</p></div>
-            <button type="button" onClick={() => void handleSignOut()} disabled={isSigningOut || isInternalSigningOut} className="rounded p-1.5 text-[#d9e2fc] transition hover:bg-white/10 disabled:opacity-50" aria-label="Logout" title="Logout"><LogOut size={16} /></button>
+          {/* <NavigationItem icon={<Settings size={15} />} label="Settings" /> */}
+          <div className="flex items-center gap-2 rounded-[100px] px-2 py-1.5 border  border-[#D9364F] border-4 text-xs font-semibold text-white justify-center ">
+            {/* <span className="grid size-7 place-items-center rounded-full bg-[#16834b] text-[10px] font-bold text-white">{account.initials}</span> */}
+            {/* <p className="truncate text-xs font-bold text-white">LOGOUT</p> */}
+            <button type="button" onClick={() => void handleSignOut()} disabled={isSigningOut || isInternalSigningOut} className="rounded p-1.5 text-[#D9364F] transition hover:bg-white/10 disabled:opacity-50" aria-label="Logout" title="Logout">LOGOUT</button>
           </div>
         </div>
       </aside>
 
-      {isOpen === undefined && (
-        <button
-          type="button"
-          onClick={() => setIsInternalSidebarOpen(true)}
-          className="fixed left-4 top-4 z-30 rounded-lg bg-[#0f2342] p-2 text-white lg:hidden"
-          aria-label="Buka navigasi"
-        >
-          <Menu size={20} />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setIsSidebarOpen(true)}
+        className="fixed left-4 top-4 z-30 rounded-lg bg-[#0f2342] p-2 text-white lg:hidden"
+        aria-label="Buka navigasi"
+      >
+        <Menu size={20} />
+      </button>
     </>
   );
 }
