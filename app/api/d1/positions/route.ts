@@ -56,7 +56,8 @@ export async function POST(request: Request) {
     const departemen = body.departemen || body.department;
     const deskripsi = body.deskripsi_posisi || body.deskripsi || body.description;
     const statusPosisi = body.status_posisi || body.status || 'Active';
-    // const positionCode = body.position_code || body.kode_posisi || `POS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const lokasi = body.lokasi || body.location || body.site || 'HQ';
+    const jobCode = body.job_code || body.position_code || `POS-${Math.floor(1000 + Math.random() * 9000)}`;
 
     if (!namaPosisi || !departemen) {
       return NextResponse.json({
@@ -73,10 +74,11 @@ export async function POST(request: Request) {
       nama_posisi: namaPosisi,
       departemen: departemen,
       status_posisi: statusPosisi,
+      job_code: jobCode,
+      location: lokasi,
     };
 
     if (deskripsi !== undefined) payload.deskripsi_posisi = deskripsi;
-    // if (positionCode !== undefined) payload.position_code = positionCode;
 
     const { data, error } = await supabase
       .from('d1_job_positions')

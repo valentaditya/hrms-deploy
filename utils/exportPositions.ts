@@ -24,6 +24,15 @@ function getStatus(pos: PositionItem): "Active" | "Inactive" {
   return (pos.status_posisi || pos.status || "Active") as "Active" | "Inactive";
 }
 
+
+function getJobCode(pos: PositionItem) {
+  return pos.job_code || "";
+}
+
+function getLokasi(pos: PositionItem) {
+  return pos.location || "";
+}
+
 function getFormattedDate() {
   const now = new Date();
   return new Intl.DateTimeFormat("id-ID", {
@@ -44,7 +53,7 @@ function getShortDate() {
  * 1. Export as CSV (RFC-4180 with UTF-8 BOM for Microsoft Excel compatibility)
  */
 export function exportPositionsToCSV(data: PositionItem[], filenamePrefix = "Laporan_Posisi_Andima") {
-  const headers = ["No", "Kode Posisi", "Nama Posisi", "Departemen", "Status", "Deskripsi Posisi"];
+  const headers = ["No", "Kode Posisi", "Nama Posisi", "Departemen", "Lokasi", "Status", "Deskripsi Posisi"];
 
   const escapeCSV = (value: string | undefined | null) => {
     if (value === null || value === undefined) return '""';
@@ -54,9 +63,10 @@ export function exportPositionsToCSV(data: PositionItem[], filenamePrefix = "Lap
 
   const rows = data.map((pos, index) => [
     index + 1,
-    escapeCSV(pos.position_code || pos.id),
+    escapeCSV(getJobCode(pos)),
     escapeCSV(getNamaPosisi(pos)),
     escapeCSV(getDepartemen(pos)),
+    escapeCSV(getLokasi(pos)),
     escapeCSV(getStatus(pos)),
     escapeCSV(getDeskripsi(pos)),
   ]);
@@ -98,9 +108,10 @@ export function exportPositionsToExcel(data: PositionItem[], filenamePrefix = "L
   data.forEach((pos, idx) => {
     worksheetData.push([
       idx + 1,
-      pos.position_code || pos.id || "-",
+      getJobCode(pos),
       getNamaPosisi(pos),
       getDepartemen(pos),
+      getLokasi(pos),
       getStatus(pos),
       getDeskripsi(pos),
     ]);
@@ -114,6 +125,7 @@ export function exportPositionsToExcel(data: PositionItem[], filenamePrefix = "L
     { wch: 18 },  // Kode Posisi
     { wch: 32 },  // Nama Posisi
     { wch: 45 },  // Departemen
+    { wch: 18 },  // Lokasi
     { wch: 14 },  // Status
     { wch: 55 },  // Deskripsi Posisi
   ];
@@ -211,16 +223,17 @@ export function exportPositionsToPDF(data: PositionItem[], filenamePrefix = "Lap
   // Table Data
   const tableRows = data.map((pos, idx) => [
     idx + 1,
-    pos.position_code || pos.id || "-",
+    getJobCode(pos),
     getNamaPosisi(pos),
     getDepartemen(pos),
+    getLokasi(pos),
     getStatus(pos),
     getDeskripsi(pos),
   ]);
 
   autoTable(doc, {
     startY: 61,
-    head: [["No", "Kode Posisi", "Nama Posisi", "Departemen", "Status", "Deskripsi Posisi"]],
+    head: [["No", "Kode Posisi", "Nama Posisi", "Departemen","Lokasi", "Status", "Deskripsi Posisi"]],
     body: tableRows,
     theme: "grid",
     headStyles: {
@@ -243,11 +256,14 @@ export function exportPositionsToPDF(data: PositionItem[], filenamePrefix = "Lap
       1: { cellWidth: 26 },
       2: { cellWidth: 38, fontStyle: "bold" },
       3: { cellWidth: 42 },
-      4: { cellWidth: 18, halign: "center" },
-      5: { cellWidth: "auto" },
+      4: { cellWidth: 18 },
+      5: { cellWidth: 14, halign: "center" },
+      6: { cellWidth: "auto" },
+      // 4: { cellWidth: 18, halign: "center" },
+      // 5: { cellWidth: "auto" },
     },
     didParseCell: (dataCell) => {
-      if (dataCell.section === "body" && dataCell.column.index === 4) {
+      if (dataCell.section === "body" && dataCell.column.index === 5) {
         const val = dataCell.cell.raw;
         if (val === "Active") {
           dataCell.cell.styles.textColor = [22, 131, 75];

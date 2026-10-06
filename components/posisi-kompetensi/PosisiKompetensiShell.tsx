@@ -8,8 +8,9 @@ import {
   CircleHelp,
   Menu,
 } from "lucide-react";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
+import { createClient } from "@/utils/supabase/client";
 
 export type ViewRole = "manager" | "employee";
 
@@ -32,6 +33,18 @@ const PAGE_TITLES: Record<string, string> = {
   "/manajemen-posisi-dan-kompetensi/laporan": "Laporan & Ekspor",
 };
 
+type LoggedUserProfile = {
+  name: string;
+  role: string;
+  initials: string;
+};
+
+const defaultUserProfile: LoggedUserProfile = {
+  name: "Andima User",
+  role: "HRMS User",
+  initials: "AU",
+};
+
 export default function PosisiKompetensiShell({
   children,
 }: {
@@ -40,6 +53,61 @@ export default function PosisiKompetensiShell({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [viewRole, setViewRole] = useState<ViewRole>("manager");
+  const [userProfile, setUserProfile] = useState<LoggedUserProfile>(defaultUserProfile);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUserProfile() {
+      try {
+        const supabase = createClient();
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData.user;
+
+        if (!user || !isMounted) return;
+
+        const { data: access } = await supabase
+          .from("d3_user_access")
+          .select("app_role")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+
+        const metadataName = user.user_metadata?.full_name;
+        const name = typeof metadataName === "string" && metadataName.trim()
+          ? metadataName.trim()
+          : user.email?.split("@")[0] ?? "Andima User";
+
+        const role = access?.app_role === "HR"
+          ? "HR"
+          : access?.app_role === "MANAGER"
+            ? "Manager"
+            : access?.app_role === "EMPLOYEE"
+              ? "Employee"
+              : "HRMS User";
+
+        const initials = name
+          .split(" ")
+          .filter(Boolean)
+          .map((part) => part[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() || "AU";
+
+        if (isMounted) {
+          setUserProfile({ name, role, initials });
+        }
+      } catch {
+        if (isMounted) {
+          setUserProfile(defaultUserProfile);
+        }
+      }
+    }
+
+    void loadUserProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <PosisiKompetensiContext.Provider value={{ viewRole, setViewRole }}>
@@ -73,7 +141,7 @@ export default function PosisiKompetensiShell({
 
             <div className="flex items-center gap-3">
               {/* Role Switcher */}
-              <div className="flex items-center gap-2 rounded-lg border border-[#becabd]/60 bg-[#f1f3ff] px-2.5 py-1 text-xs font-semibold text-[#1e3765]">
+              {/* <div className="flex items-center gap-2 rounded-lg border border-[#becabd]/60 bg-[#f1f3ff] px-2.5 py-1 text-xs font-semibold text-[#1e3765]">
                 <span className="text-[11px] text-[#4d5f81] hidden sm:inline">Pratinjau Role:</span>
                 <select
                   value={viewRole}
@@ -83,9 +151,9 @@ export default function PosisiKompetensiShell({
                   <option value="manager">HR / Manager</option>
                   <option value="employee">Employee</option>
                 </select>
-              </div>
+              </div> */}
 
-              <button
+              {/* <button
                 className="relative grid size-9 place-items-center rounded-lg text-[#4d5f81] hover:bg-[#f1f3ff]"
                 aria-label="Notifikasi"
               >
@@ -97,16 +165,16 @@ export default function PosisiKompetensiShell({
                 aria-label="Bantuan"
               >
                 <CircleHelp size={17} />
-              </button>
+              </button> */}
 
               <div className="hidden items-center gap-2 border-l border-[#d9e2fc] pl-3 sm:flex">
                 <span className="grid size-8 place-items-center rounded-full border border-[#006838]/30 bg-[#16834b]/15 text-xs font-bold text-[#006838]">
-                  NN
+                  {userProfile.initials}
                 </span>
                 <div className="text-left">
-                  <p className="text-xs font-bold">Nick Nelson</p>
+                  <p className="text-xs font-bold">{userProfile.name}</p>
                   <p className="text-[10px] text-[#4d5f81]">
-                    {viewRole === "manager" ? "HR Manager" : "Employee"}
+                    {userProfile.role}
                   </p>
                 </div>
               </div>

@@ -35,6 +35,8 @@ export interface PositionItem {
   status?: string;
   created_at?: string;
   position_code?: string;
+  job_code?: string;
+  location?: string;
 }
 
 function getNamaPosisi(pos: PositionItem) {
@@ -50,10 +52,18 @@ function getStatus(pos: PositionItem): "Active" | "Inactive" {
   return (pos.status_posisi || pos.status || "Active") as "Active" | "Inactive";
 }
 
+function getJobCode(pos: PositionItem) {
+  return pos.job_code || "";
+}
+
+function getLokasi(pos: PositionItem) {
+  return pos.location || "";
+}
+
 export const DEPARTMENTS = [
-  "Department of Finance and Accounting",
-  "Department of Human Capital and Culture",
-  "Department of Commercial and Strategic Client Partnership",
+  "Finance, Accounting & Tax",
+  "Human Capital & Culture",
+  "Commercial & Customer Success",
 ] as const;
 
 function PosisiContent() {
@@ -104,16 +114,20 @@ function PosisiContent() {
   const filteredPositions = useMemo(() => {
     return positions.filter((pos) => {
       const nama = getNamaPosisi(pos).toLowerCase();
-      const kode = (pos.position_code || pos.id || "").toLowerCase();
+      const kode = getJobCode(pos).toLowerCase();
+      const lokasi = getLokasi(pos).toLowerCase();
       const matchSearch =
         !search.trim() ||
         nama.includes(search.toLowerCase()) ||
-        kode.includes(search.toLowerCase());
+        kode.includes(search.toLowerCase()) ||
+        lokasi.includes(search.toLowerCase());
+
       const matchDept =
         departmentFilter === "ALL" || getDepartemen(pos) === departmentFilter;
       const matchStatus =
         statusFilter === "ALL" || getStatus(pos) === statusFilter;
       return matchSearch && matchDept && matchStatus;
+      
     });
   }, [positions, search, departmentFilter, statusFilter]);
 
@@ -127,10 +141,16 @@ function PosisiContent() {
 
   const handleCreatePosition = async (body: Record<string, string | undefined>) => {
     try {
+      const payload = {
+        ...body,
+        job_code: body.job_code || `JP-${Math.floor(1000 + Math.random() * 9000)}`,
+        lokasi: body.lokasi || body.location || "HQ",
+      };
+
       const res = await fetch("/api/d1/positions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (json.success) {
@@ -327,8 +347,9 @@ function PosisiContent() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-[#becabd]/35 bg-[#f7f8ff] text-[11px] font-bold uppercase tracking-wider text-[#4d5f81]">
                 <tr>
-                  <th className="px-4 py-3.5">Kode / Nama Posisi</th>
+                  <th className="px-4 py-3.5 ">Kode / Nama Posisi</th>
                   <th className="px-4 py-3.5">Departemen</th>
+                  <th className="px-4 py-3.5 ">Lokasi</th>
                   <th className="px-4 py-3.5">Status</th>
                   <th className="px-4 py-3.5 text-center">Aksi</th>
                 </tr>
@@ -338,10 +359,13 @@ function PosisiContent() {
                   <tr key={item.id} className="transition hover:bg-[#f7f8ff]">
                     <td className="px-4 py-3.5">
                       <p className="font-bold text-[#121b2e]">{getNamaPosisi(item)}</p>
-                      <p className="text-[10px] text-[#4d5f81]">{item.position_code || item.id}</p>
+                      <p className="text-[10px] text-[#4d5f81]">{getJobCode(item)}</p>
                     </td>
                     <td className="max-w-[240px] truncate px-4 py-3.5 text-[#3f4940]" title={getDepartemen(item)}>
                       {getDepartemen(item)}
+                    </td>
+                    <td className="px-4 py-3.5 ">
+                      <p className="text-[10px] text-[#4d5f81]">{getLokasi(item)}</p>
                     </td>
                     <td className="px-4 py-3.5">
                       <span
@@ -422,6 +446,8 @@ function PosisiContent() {
             departemen: getDepartemen(editItem),
             deskripsi: getDeskripsi(editItem),
             status_posisi: getStatus(editItem),
+            job_code: getJobCode(editItem),
+            lokasi: getLokasi(editItem),
           }}
           onClose={() => setEditItem(null)}
           onSubmit={(vals) => handleUpdatePosition(editItem.id, vals)}
@@ -488,7 +514,9 @@ function PositionFormModal({
     nama_posisi?: string;
     departemen?: string;
     deskripsi?: string;
+    job_code?: string;
     status_posisi?: "Active" | "Inactive";
+    lokasi?: string;
   };
   onClose: () => void;
   onSubmit: (vals: Record<string, string | undefined>) => void;
@@ -499,8 +527,9 @@ function PositionFormModal({
   const [statusPosisi, setStatusPosisi] = useState<"Active" | "Inactive">(
     initialValues?.status_posisi || "Active"
   );
+  const [lokasi, setLokasi] = useState(initialValues?.lokasi || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ nama_posisi?: string; deskripsi?: string }>({});
+  const [errors, setErrors] = useState<{ nama_posisi?: string; deskripsi?: string; lokasi?: string }>({});
 
   const validate = () => {
     const errs: { nama_posisi?: string; deskripsi?: string } = {};
@@ -523,6 +552,8 @@ function PositionFormModal({
       departemen,
       deskripsi_posisi: deskripsi.trim() || undefined,
       status_posisi: statusPosisi,
+      lokasi: lokasi.trim() || "HQ",
+      job_code: `JP-${Math.floor(1000 + Math.random() * 9000)}`,
     });
     setIsSubmitting(false);
   };
@@ -567,6 +598,23 @@ function PositionFormModal({
                 <option key={dept} value={dept}>{dept}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block font-bold text-[#3f4940] mb-1">
+              Lokasi <span className="text-[#d64545]">*</span>
+            </label>
+            <input
+              type="text"
+              value={lokasi}
+              onChange={(e) => setLokasi(e.target.value)}
+              placeholder="Contoh: HQ - Menara MTH"
+              className={`w-full rounded-lg border bg-white px-3 py-2.5 outline-none focus:border-[#069494] ${
+                errors.lokasi ? "border-[#d64545]" : "border-[#becabd]/60"
+              }`}
+            />
+            {errors.lokasi && (
+              <p className="mt-1 text-[11px] font-semibold text-[#d64545]">{errors.lokasi}</p>
+            )}
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">

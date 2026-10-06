@@ -96,6 +96,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ posi
     const departemen = body.departemen ?? body.department;
     const deskripsi = body.deskripsi_posisi ?? body.deskripsi ?? body.description;
     const statusPosisi = body.status_posisi ?? body.status;
+    const lokasi = body.lokasi ?? body.location ?? body.site;
+    const jobCode = body.job_code ?? body.position_code;
 
     if (namaPosisi !== undefined) {
       if (typeof namaPosisi !== 'string' || namaPosisi.trim().length < 3 || namaPosisi.trim().length > 100) {
@@ -132,6 +134,24 @@ export async function PUT(request: Request, { params }: { params: Promise<{ posi
         }, { status: 400 });
       }
       updatePayload.status_posisi = statusPosisi;
+    }
+    if (lokasi !== undefined) {
+      if (typeof lokasi !== 'string' || !lokasi.trim()) {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Lokasi wajib diisi' }
+        }, { status: 400 });
+      }
+      updatePayload.location = lokasi.trim();
+    }
+    if (jobCode !== undefined) {
+      if (typeof jobCode !== 'string' || !jobCode.trim()) {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Kode posisi wajib diisi' }
+        }, { status: 400 });
+      }
+      updatePayload.job_code = jobCode.trim();
     }
 
     if (Object.keys(updatePayload).length === 0) {
