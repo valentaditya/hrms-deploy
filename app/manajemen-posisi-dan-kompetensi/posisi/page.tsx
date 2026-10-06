@@ -690,8 +690,16 @@ function PositionDetailModal({ item, onClose }: { item: PositionItem; onClose: (
         </div>
         <div className="p-6 space-y-4 text-xs text-[#3f4940]">
           <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Kode Posisi</span>
+            <p className="font-semibold text-[#121b2e]">{getJobCode(item) || "-"}</p>
+          </div>
+          <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Departemen</span>
             <p className="font-semibold text-[#121b2e]">{getDepartemen(item)}</p>
+          </div>
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Lokasi</span>
+            <p className="font-semibold text-[#121b2e]">{getLokasi(item) || "-"}</p>
           </div>
           <div>
             <div>

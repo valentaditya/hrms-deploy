@@ -61,11 +61,13 @@ function KpiContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [editPositionId, setEditPositionId] = useState<string | null>(null);
+  const [deleteGroup, setDeleteGroup] = useState<PositionKpiGroup | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const DEPARTMENTS = [
-    "Department of Finance and Accounting",
-    "Department of Human Capital and Culture",
-    "Department of Commercial and Strategic Client Partnership",
+    "Finance, Accounting & Tax",
+    "Human Capital & Culture",
+    "Commercial & Customer Success",
   ];
 
   const showNotification = (msg: string) => {
@@ -181,6 +183,30 @@ function KpiContent() {
     }
   };
 
+  const handleDeleteKpiGroup = async () => {
+    if (!deleteGroup) return;
+    setIsDeleting(true);
+    try {
+      const results = await Promise.all(
+        deleteGroup.kpis
+          .filter((kpi): kpi is KpiRow & { id: string } => Boolean(kpi.id))
+          .map((kpi) => fetch(`/api/d1/kpi/${kpi.id}`, { method: "DELETE" }))
+      );
+      if (results.length !== deleteGroup.kpis.length || results.some((result) => !result.ok)) {
+        await fetchAll();
+        showNotification("Sebagian definisi KPI gagal dihapus. Silakan coba lagi.");
+        return;
+      }
+      await fetchAll();
+      setDeleteGroup(null);
+      showNotification(`Definisi KPI untuk "${deleteGroup.positionName}" berhasil dihapus.`);
+    } catch {
+      showNotification("Gagal menghapus definisi KPI.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {toast && (
@@ -266,6 +292,7 @@ function KpiContent() {
                     <p className="text-[11px] text-[#4d5f81]">{item.department}</p>
                   </div>
                   {viewRole === "manager" && (
+                    <div className="flex shrink-0 items-center gap-1">
                     <button
                       onClick={() => { setEditPositionId(item.position_id); setIsModalOpen(true); }}
                       className="rounded p-1 text-[#069494] hover:bg-[#eaf7f0]"
@@ -273,6 +300,14 @@ function KpiContent() {
                     >
                       <Award size={18} />
                     </button>
+                    <button
+                      onClick={() => setDeleteGroup(item)}
+                      className="rounded p-1 text-[#4d5f81] hover:bg-[#fff1f2] hover:text-[#d64545]"
+                      title="Hapus Definisi KPI Posisi Ini"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                    </div>
                   )}
                 </div>
 
@@ -333,6 +368,36 @@ function KpiContent() {
       )}
 
       {/* Modal */}
+      {deleteGroup && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f2342]/45 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-3 text-[#d64545]">
+              <AlertCircle size={24} />
+              <h3 className="text-base font-bold text-[#121b2e]">Hapus Definisi KPI</h3>
+            </div>
+            <p className="text-xs leading-relaxed text-[#4d5f81]">
+              Hapus semua definisi KPI untuk posisi <b>{deleteGroup.positionName}</b>? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDeleteGroup(null)}
+                disabled={isDeleting}
+                className="rounded-lg px-4 py-2 text-xs font-bold text-[#4d5f81] hover:bg-[#f1f3ff] disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteKpiGroup}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#d64545] px-4 py-2 text-xs font-bold text-white hover:bg-[#b91c1c] disabled:opacity-50"
+              >
+                {isDeleting && <Loader2 size={14} className="animate-spin" />}
+                Hapus Definisi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isModalOpen && (
         <MultiStepKpiModal
           positions={positions}

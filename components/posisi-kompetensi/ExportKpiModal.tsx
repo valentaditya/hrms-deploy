@@ -145,9 +145,9 @@ export default function ExportKpiModal({
                     <div className="mt-0.5 shrink-0">{fmt.icon}</div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-[#121b2e] text-xs">
+                        {/* <span className="font-bold text-[#121b2e] text-xs">
                           {fmt.title}
-                        </span>
+                        </span> */}
                         <span
                           className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${fmt.bg}`}
                         >
@@ -165,82 +165,7 @@ export default function ExportKpiModal({
           </div>
 
           {/* Scope Selection */}
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#4d5f81] mb-2">
-              2. Cakupan Data
-            </label>
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => setScope("all")}
-                className={`flex items-center gap-2 p-3 rounded-xl border text-left transition ${
-                  scope === "all"
-                    ? "border-[#1e3765] bg-[#1e3765]/5 font-bold text-[#1e3765]"
-                    : "border-[#becabd]/50 bg-white text-[#4d5f81] hover:bg-[#fafbff]"
-                }`}
-              >
-                <div
-                  className={`size-4 rounded-full border grid place-items-center ${
-                    scope === "all"
-                      ? "border-[#1e3765] bg-[#1e3765] text-white"
-                      : "border-[#becabd]"
-                  }`}
-                >
-                  {scope === "all" && <CheckCircle2 size={12} />}
-                </div>
-                <div>
-                  <div className="text-xs">Semua Departemen</div>
-                  <div className="text-[10px] text-[#4d5f81]/80 font-normal">
-                    {allGroups.length} posisi terdefinisi
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setScope("filtered")}
-                className={`flex items-center gap-2 p-3 rounded-xl border text-left transition ${
-                  scope === "filtered"
-                    ? "border-[#1e3765] bg-[#1e3765]/5 font-bold text-[#1e3765]"
-                    : "border-[#becabd]/50 bg-white text-[#4d5f81] hover:bg-[#fafbff]"
-                }`}
-              >
-                <div
-                  className={`size-4 rounded-full border grid place-items-center ${
-                    scope === "filtered"
-                      ? "border-[#1e3765] bg-[#1e3765] text-white"
-                      : "border-[#becabd]"
-                  }`}
-                >
-                  {scope === "filtered" && <CheckCircle2 size={12} />}
-                </div>
-                <div>
-                  <div className="text-xs flex items-center gap-1">
-                    <Filter size={11} /> Filter Departemen
-                  </div>
-                  <div className="text-[10px] text-[#4d5f81]/80 font-normal">
-                    {filteredGroups.length} posisi terpilih
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Owner Quick Summary Note */}
-          <div className="rounded-xl border border-[#becabd]/40 bg-[#f7f8ff] p-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={18} className="text-[#069494] shrink-0" />
-              <div>
-                <span className="font-bold text-[#121b2e] block">Ringkasan Dokumen</span>
-                <span className="text-[10px] text-[#4d5f81]">
-                  {targetData.length} Posisi • {totalKpiCount} Indikator KPI (Bobot 100%)
-                </span>
-              </div>
-            </div>
-            <span className="text-[10px] font-semibold bg-white border border-[#becabd]/50 text-[#1e3765] px-2.5 py-1 rounded-md">
-              PT Andima
-            </span>
-          </div>
+          
         </div>
 
         {/* Modal Footer */}
