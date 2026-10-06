@@ -301,7 +301,7 @@ export default function LoginPage() {
             />
           </svg>
         </div> */}
-        <Image src={Logo} alt="ANDIMA logo" width={80} height={80} className="h-9 w-9 " priority />
+        <Image src={Logo} alt="ANDIMA logo"  className="h-20 w-auto " priority />
 
         <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">
           PT. ANDIMA

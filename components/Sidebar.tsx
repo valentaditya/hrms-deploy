@@ -74,10 +74,13 @@ function HrmsLink({ label, href }: { label: string; href: string }) {
   return (
     <Link
       href={href}
-      className={`flex w-full items-center rounded-md px-3 py-2 text-xs transition-colors ${
-        isActive ? "bg-[#1e3765] text-white" : "text-[#d9e2fc]/80 hover:bg-[#1e3765] hover:text-white"
+      className={`flex w-full items-center rounded-lg px-3 py-2.5 text-xs transition-colors ${
+        isActive
+          ? "bg-[#B8C4D2] text-[#162240]"
+          : "text-[#d9e2fc]/80 hover:bg-[#B8C4D2] hover:text-[#162240]"
       }`}
     >
+      <span className={`w-1.5 h-1.5 mr-1 rounded-full shrink-0 ${isActive ? "bg-[#069494]" : "bg-transparent"}`} />
       {label}
     </Link>
   );
