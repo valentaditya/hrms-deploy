@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useRef, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
 
 interface FieldErrors {
   fullName?: string;
@@ -25,6 +27,14 @@ export default function RegisterPage() {
   const [employmentStatus, setEmploymentStatus] = useState<string>('');
   const [positionId, setPositionId] = useState<string>('');
   const [departementId, setDepartementId] = useState<string>('');
+  const [greeting, setGreeting] = useState<string>('Good Morning');
+
+  useEffect(() => {
+      const hour = new Date().getHours();
+      if (hour >= 3 && hour < 12) setGreeting('Good Morning');
+      else if (hour >= 12 && hour < 17) setGreeting('Good Afternoon');
+      else setGreeting('Good Evening');
+    }, []);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -68,7 +78,7 @@ export default function RegisterPage() {
     const IS_DIRECTOR = selectedPositionId === '0ec333af-8737-413f-adab-841a3067e485';
 
     if (IS_DIRECTOR) {
-      const { data: dirData, error: dirError } = await createClient()
+      const { data: dirData, error: dirError } = await supabase
         .from('b2_register')
         .select('employee_id')
         .like('employee_id', 'DIR-%')
@@ -93,7 +103,7 @@ export default function RegisterPage() {
     const prefix = DEPARTMENT_PREFIX_MAP[selectedDepartmentId] || 'AND';
 
     // Cari ID terakhir di DB yang berawalan prefiks departemen tersebut (misal: 'IT-DEV-%')
-    const { data, error } = await createClient()
+    const { data, error } = await supabase
       .from('b2_register')
       .select('employee_id')
       .like('employee_id', `${prefix}-%`)
@@ -209,7 +219,7 @@ export default function RegisterPage() {
         const autoEmployeeId = await generateNextEmployeeId(departementId, positionId);
 
         // 2. Buat akun Supabase Auth (diubah: tangkap data untuk mengambil UUID)
-        const { data: authData, error: authError } = await createClient().auth.signUp({
+        const { data: authData, error: authError } = await supabase.auth.signUp({
           email: emailLower,
           password: password,
           options: {
@@ -231,7 +241,7 @@ export default function RegisterPage() {
         }
 
         // 3. Simpan data ke b2_register (diubah: tambahkan id: userId bertipe UUID)
-        const { error: dbError } = await createClient() 
+        const { error: dbError } = await supabase
           .from('b2_register')
           .insert([
             {
@@ -276,16 +286,17 @@ export default function RegisterPage() {
       {/* CONTAINER FORM REGISTRASI */}
       <div className="w-full min-h-full lg:w-1/2 min-w-0 flex flex-col justify-center p-4 sm:p-8 lg:p-10 relative z-10">
         <div className="w-full max-w-2xl shrink-0 mx-auto p-6 sm:p-9 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-hidden">
-          
-          {/* Header */}
-          <div className="mb-5 sm:mb-6 relative z-10">
-            <span className="text-xs sm:text-sm text-[#172033] uppercase tracking-widest block mb-1 font-bold">
-              Register Account
-            </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wide text-[#172033] uppercase leading-tight">
-              PT ANDIMA TRANSPORTINDO
-            </h1>
-          </div>
+        
+        {/* 3. FORM LOGIN CONTAINER */}
+          {/* Greeting */}
+            <div className="mb-7 text-left relative z-10">
+              <h2 className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
+                {greeting},
+              </h2>
+              <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">
+                Please register with your identity.
+              </p>
+            </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} noValidate className="space-y-3.5 sm:space-y-4 w-full relative z-10">
@@ -511,6 +522,29 @@ export default function RegisterPage() {
         </div>
       </div>
 
+      {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
+            <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
+              
+              {/* Logo ANDIMA di Luar Frame */}
+              <div className="w-32 sm:w-40 lg:w-48 mb-4">
+                <img
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
+                  alt="Logo ANDIMA"
+                  width={400}
+                  height={246}
+                  className="w-full h-auto object-contain drop-shadow-lg"
+                />
+              </div>
+              {/* Frame Transparan #0F2342 */}
+              {/* Frame Transparan dengan Warna #0F2342 */}
+              <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+                PT. ANDIMA<br />
+                <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+                  TRANSPORTINDO
+                </span>
+              </h1>
+          </div>
+
       {/* BACKGROUND IMAGE LOGISTICS */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <img
@@ -522,5 +556,6 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#07111F] via-transparent to-transparent pointer-events-none" />
       </div>
     </main>
+
   );
 }

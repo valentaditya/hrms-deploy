@@ -56,8 +56,8 @@ export async function POST(request: Request) {
     const departemen = body.departemen || body.department;
     const deskripsi = body.deskripsi_posisi || body.deskripsi || body.description;
     const statusPosisi = body.status_posisi || body.status || 'Active';
-    const lokasi = body.lokasi || body.location || body.site || 'HQ';
-    const jobCode = body.job_code || body.position_code || `POS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const lokasi = body.lokasi || body.location || body.site || 'HQ - Menara MTH';
+    const jobCode = body.job_code || body.position_code || `JP-${Math.floor(1000 + Math.random() * 9000)}`;
 
     if (!namaPosisi || !departemen) {
       return NextResponse.json({

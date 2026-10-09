@@ -20,6 +20,8 @@ import {
   Building2,
   Award,
   Loader2,
+  XCircle,
+  RotateCcw,
 } from "lucide-react";
 import ExportPositionsModal from "@/components/posisi-kompetensi/ExportPositionsModal";
 
@@ -77,12 +79,28 @@ function PosisiContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [toast, setToast] = useState<string>("");
 
+  const hasActiveFilters = Boolean(
+    search.trim() !== "" || departmentFilter !== "ALL" || statusFilter !== "ALL"
+  );
+
+  const handleResetFilter = () => {
+    setSearch("");
+    setDepartmentFilter("ALL");
+    setStatusFilter("ALL");
+    setCurrentPage(1);
+  };
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [viewItem, setViewItem] = useState<PositionItem | null>(null);
   const [editItem, setEditItem] = useState<PositionItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkStatusTarget, setBulkStatusTarget] = useState<"Active" | "Inactive" | null>(null);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const showNotification = (msg: string) => {
     setToast(msg);
@@ -139,12 +157,43 @@ function PosisiContent() {
   const page = Math.min(currentPage, totalPages);
   const pagePositions = filteredPositions.slice((page - 1) * 10, page * 10);
 
+  const allPageSelected =
+    pagePositions.length > 0 &&
+    pagePositions.every((p) => selectedIds.includes(p.id));
+  const somePageSelected =
+    pagePositions.some((p) => selectedIds.includes(p.id)) && !allPageSelected;
+
+  const handleToggleSelectAllPage = () => {
+    const pageIds = pagePositions.map((p) => p.id);
+    if (allPageSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const handleToggleSelectAllFiltered = () => {
+    const allFilteredIds = filteredPositions.map((p) => p.id);
+    if (selectedIds.length === allFilteredIds.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allFilteredIds);
+    }
+  };
+
+  const handleToggleRow = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
   const handleCreatePosition = async (body: Record<string, string | undefined>) => {
     try {
       const payload = {
         ...body,
         job_code: body.job_code || `JP-${Math.floor(1000 + Math.random() * 9000)}`,
-        lokasi: body.lokasi || body.location || "HQ",
+        lokasi: body.lokasi || "HQ - Menara MTH",
+        status_posisi: "Active",
       };
 
       const res = await fetch("/api/d1/positions", {
@@ -194,6 +243,7 @@ function PosisiContent() {
       if (json.success) {
         await fetchPositions();
         setDeleteId(null);
+        setSelectedIds((prev) => prev.filter((item) => item !== id));
         if (target) showNotification(`Posisi "${getNamaPosisi(target)}" berhasil dihapus.`);
       } else {
         showNotification(`Error: ${json.error?.message}`);
@@ -202,6 +252,52 @@ function PosisiContent() {
       showNotification("Gagal menghapus posisi.");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          fetch(`/api/d1/positions/${id}`, { method: "DELETE" })
+        )
+      );
+      await fetchPositions();
+      const count = selectedIds.length;
+      setSelectedIds([]);
+      setIsBulkDeleteOpen(false);
+      showNotification(`${count} posisi terpilih berhasil dihapus.`);
+    } catch {
+      showNotification("Sebagian atau seluruh posisi gagal dihapus.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleBulkUpdateStatus = async (status: "Active" | "Inactive") => {
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          fetch(`/api/d1/positions/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status_posisi: status }),
+          })
+        )
+      );
+      await fetchPositions();
+      const count = selectedIds.length;
+      setSelectedIds([]);
+      setBulkStatusTarget(null);
+      showNotification(
+        `Status ${count} posisi terpilih berhasil diubah menjadi ${status}.`
+      );
+    } catch {
+      showNotification("Sebagian atau seluruh status posisi gagal diperbarui.");
+    } finally {
+      setIsBulkUpdating(false);
     }
   };
 
@@ -291,25 +387,49 @@ function PosisiContent() {
         </div>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex flex-col gap-3 rounded-xl border border-[#becabd]/45 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-3 text-[#4d5f81]/70" />
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col gap-3 rounded-xl border border-[#becabd]/45 bg-white p-3.5 shadow-sm md:flex-row md:items-center md:justify-between">
+        {/* Search Input with Dynamic Clear (X) Button */}
+        <div className="relative flex-1 min-w-[260px]">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#4d5f81]/70 pointer-events-none" />
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama posisi atau kode..."
-            className="w-full rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] py-2 pl-9 pr-3 text-xs outline-none focus:border-[#069494]"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Cari nama posisi, lokasi..."
+            className="w-full rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] py-2 pl-9 pr-8 text-xs font-medium text-[#121b2e] outline-none transition focus:border-[#069494] focus:bg-white placeholder:text-[#4d5f81]/70"
           />
+          {search.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setCurrentPage(1);
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded-full text-[#4d5f81] hover:bg-[#d9e2fc] hover:text-[#121b2e] transition"
+              title="Hapus teks pencarian"
+              aria-label="Hapus teks pencarian"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
+
+        {/* Filter Dropdowns & Reset Action */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] px-2.5 py-1.5 text-xs text-[#4d5f81]">
-            <Filter size={14} />
+          {/* Departemen Dropdown */}
+          <div className="flex items-center gap-1.5 rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] px-3 py-2 text-xs text-[#4d5f81] transition focus-within:border-[#069494] focus-within:bg-white">
+            <Filter size={13} className="text-[#4d5f81]/80 shrink-0" />
             <select
               value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="bg-transparent font-semibold text-[#1e3765] outline-none"
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent font-semibold text-[#1e3765] outline-none cursor-pointer"
             >
               <option value="ALL">Semua Departemen</option>
               {DEPARTMENTS.map((dept) => (
@@ -317,19 +437,91 @@ function PosisiContent() {
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-1.5 rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] px-2.5 py-1.5 text-xs text-[#4d5f81]">
+
+          {/* Status Dropdown */}
+          <div className="flex items-center gap-1.5 rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] px-3 py-2 text-xs text-[#4d5f81] transition focus-within:border-[#069494] focus-within:bg-white">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent font-semibold text-[#1e3765] outline-none"
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent font-semibold text-[#1e3765] outline-none cursor-pointer"
             >
               <option value="ALL">Semua Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
           </div>
+
+          {/* Reset Filter Button */}
+          <button
+            type="button"
+            onClick={handleResetFilter}
+            disabled={!hasActiveFilters}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition ${
+              hasActiveFilters
+                ? "border-[#d64545]/30 bg-[#fff1f2] text-[#d64545] hover:bg-[#ffe4e6] hover:border-[#d64545]/50 cursor-pointer shadow-sm"
+                : "border-[#becabd]/50 bg-[#f7f8ff] text-[#4d5f81]/50 cursor-not-allowed opacity-60"
+            }`}
+            title={hasActiveFilters ? "Reset semua filter dan pencarian" : "Tidak ada filter aktif"}
+          >
+            <RotateCcw size={13} />
+            Reset Filter
+          </button>
         </div>
       </div>
+
+      {/* Multi-Select Action Banner */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#16834b]/30 bg-[#eaf7f0] px-4 py-3 text-xs text-[#121b2e] shadow-sm">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="flex size-6 items-center justify-center rounded-full bg-[#16834b] text-white font-bold text-[11px]">
+              {selectedIds.length}
+            </span>
+            <span className="font-semibold text-[#121b2e]">posisi terpilih</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {viewRole === "manager" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setBulkStatusTarget("Active")}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#16834b] px-3 py-1.5 font-bold text-white shadow-sm transition hover:bg-[#006838]"
+                  title="Ubah status terpilih menjadi Active"
+                >
+                  <CheckCircle2 size={13} />
+                  Active Status
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBulkStatusTarget("Inactive")}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#53657b] px-3 py-1.5 font-bold text-white shadow-sm transition hover:bg-[#394960]"
+                  title="Ubah status terpilih menjadi Inactive"
+                >
+                  <XCircle size={13} />
+                  Inactive Status
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkDeleteOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#d64545] px-3 py-1.5 font-bold text-white shadow-sm transition hover:bg-[#b91c1c]"
+                >
+                  <Trash2 size={13} />
+                  Hapus Terpilih ({selectedIds.length})
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="rounded-lg border border-[#becabd]/60 bg-white px-3 py-1.5 font-semibold text-[#4d5f81] hover:bg-[#f7f8ff]"
+            >
+              Batalkan Pilihan
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-[#becabd]/45 bg-white shadow-sm">
@@ -347,6 +539,19 @@ function PosisiContent() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-[#becabd]/35 bg-[#f7f8ff] text-[11px] font-bold uppercase tracking-wider text-[#4d5f81]">
                 <tr>
+                  <th className="px-4 py-3.5 text-center w-12" title="Pilih Semua di Halaman Ini">
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={allPageSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = somePageSelected;
+                        }}
+                        onChange={handleToggleSelectAllPage}
+                        className="size-4 rounded border-[#becabd] text-[#16834b] focus:ring-[#16834b] cursor-pointer accent-[#16834b]"
+                      />
+                    </div>
+                  </th>
                   <th className="px-4 py-3.5 ">Kode / Nama Posisi</th>
                   <th className="px-4 py-3.5">Departemen</th>
                   <th className="px-4 py-3.5 ">Lokasi</th>
@@ -355,64 +560,82 @@ function PosisiContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#becabd]/25">
-                {pagePositions.map((item) => (
-                  <tr key={item.id} className="transition hover:bg-[#f7f8ff]">
-                    <td className="px-4 py-3.5">
-                      <p className="font-bold text-[#121b2e]">{getNamaPosisi(item)}</p>
-                      <p className="text-[10px] text-[#4d5f81]">{getJobCode(item)}</p>
-                    </td>
-                    <td className="max-w-[240px] truncate px-4 py-3.5 text-[#3f4940]" title={getDepartemen(item)}>
-                      {getDepartemen(item)}
-                    </td>
-                    <td className="px-4 py-3.5 ">
-                      <p className="text-[10px] text-[#4d5f81]">{getLokasi(item)}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
-                          getStatus(item) === "Active"
-                            ? "border-[#bbf0d2] bg-[#eaf7f0] text-[#16834b]"
-                            : "border-[#fecaca] bg-[#fff1f2] text-[#d64545]"
-                        }`}
-                      >
-                        <span className="size-1.5 rounded-full bg-current" />
-                        {getStatus(item)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => setViewItem(item)}
-                          className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#f1f3ff] hover:text-[#1e3765]"
-                          title="Lihat Detail"
+                {pagePositions.map((item) => {
+                  const isSelected = selectedIds.includes(item.id);
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`transition ${
+                        isSelected ? "bg-[#eaf7f0]/60" : "hover:bg-[#f7f8ff]"
+                      }`}
+                    >
+                      <td className="px-4 py-3.5 text-center">
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleRow(item.id)}
+                            className="size-4 rounded border-[#becabd] text-[#16834b] focus:ring-[#16834b] cursor-pointer accent-[#16834b]"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-bold text-[#121b2e]">{getNamaPosisi(item)}</p>
+                        <p className="text-[10px] text-[#4d5f81]">{getJobCode(item)}</p>
+                      </td>
+                      <td className="max-w-[240px] truncate px-4 py-3.5 text-[#3f4940]" title={getDepartemen(item)}>
+                        {getDepartemen(item)}
+                      </td>
+                      <td className="px-4 py-3.5 ">
+                        <p className="text-[10px] text-[#4d5f81]">{getLokasi(item)}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+                            getStatus(item) === "Active"
+                              ? "border-[#bbf0d2] bg-[#eaf7f0] text-[#16834b]"
+                              : "border-[#fecaca] bg-[#fff1f2] text-[#d64545]"
+                          }`}
                         >
-                          <Eye size={15} />
-                        </button>
-                        {viewRole === "manager" && (
-                          <>
-                            <button
-                              onClick={() => setEditItem(item)}
-                              className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#f1f3ff] hover:text-[#069494]"
-                              title="Edit Posisi"
-                            >
-                              <Edit2 size={15} />
-                            </button>
-                            <button
-                              onClick={() => setDeleteId(item.id)}
-                              className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#fff1f2] hover:text-[#d64545]"
-                              title="Hapus Posisi"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <span className="size-1.5 rounded-full bg-current" />
+                          {getStatus(item)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => setViewItem(item)}
+                            className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#f1f3ff] hover:text-[#1e3765]"
+                            title="Lihat Detail"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          {viewRole === "manager" && (
+                            <>
+                              <button
+                                onClick={() => setEditItem(item)}
+                                className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#f1f3ff] hover:text-[#069494]"
+                                title="Edit Posisi"
+                              >
+                                <Edit2 size={15} />
+                              </button>
+                              <button
+                                onClick={() => setDeleteId(item.id)}
+                                className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#fff1f2] hover:text-[#d64545]"
+                                title="Hapus Posisi"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {filteredPositions.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-[#4d5f81]">
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#4d5f81]">
                       Tidak ada data posisi yang sesuai.
                     </td>
                   </tr>
@@ -432,6 +655,7 @@ function PosisiContent() {
       {isAddOpen && (
         <PositionFormModal
           title="Tambah Posisi Baru"
+          isEdit={false}
           onClose={() => setIsAddOpen(false)}
           onSubmit={(vals) => handleCreatePosition(vals)}
         />
@@ -440,14 +664,15 @@ function PosisiContent() {
       {/* Modal: Edit */}
       {editItem && (
         <PositionFormModal
-          title={`Edit Posisi`}
+          title="Edit Posisi"
+          isEdit={true}
           initialValues={{
             nama_posisi: getNamaPosisi(editItem),
             departemen: getDepartemen(editItem),
             deskripsi: getDeskripsi(editItem),
             status_posisi: getStatus(editItem),
             job_code: getJobCode(editItem),
-            lokasi: getLokasi(editItem),
+            lokasi: getLokasi(editItem) || "HQ - Menara MTH",
           }}
           onClose={() => setEditItem(null)}
           onSubmit={(vals) => handleUpdatePosition(editItem.id, vals)}
@@ -459,7 +684,7 @@ function PosisiContent() {
         <PositionDetailModal item={viewItem} onClose={() => setViewItem(null)} />
       )}
 
-      {/* Modal: Konfirmasi Hapus */}
+      {/* Modal: Konfirmasi Hapus Satuan */}
       {deleteId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f2342]/45 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl space-y-4">
@@ -468,8 +693,7 @@ function PosisiContent() {
               <h3 className="text-base font-bold text-[#121b2e]">Konfirmasi Hapus Posisi</h3>
             </div>
             <p className="text-xs text-[#4d5f81] leading-relaxed">
-              Apakah Anda yakin ingin menonaktifkan posisi ini? 
-              {/* (Soft-delete — status akan diubah ke Inactive) */}
+              Apakah Anda yakin ingin menghapus data posisi ini secara permanen? Data yang dihapus tidak dapat dipulihkan kembali.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -490,6 +714,179 @@ function PosisiContent() {
           </div>
         </div>
       )}
+
+      {/* Modal: Konfirmasi Hapus Massal (Bulk Delete) */}
+      {isBulkDeleteOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f2342]/45 p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-[#d64545]">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#fff1f2] text-[#d64545]">
+                <AlertCircle size={22} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#121b2e]">Konfirmasi Hapus Massal</h3>
+                <p className="text-xs text-[#4d5f81]">
+                  Menghapus <b className="text-[#d64545]">{selectedIds.length} posisi</b> secara permanen.
+                </p>
+              </div>
+            </div>
+
+            {/* List of positions to delete */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-[#4d5f81]">
+                Daftar Posisi yang Dihapus ({selectedIds.length})
+              </label>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-[#becabd]/40 bg-[#f7f8ff] p-2 divide-y divide-[#becabd]/20 space-y-1">
+                {positions
+                  .filter((p) => selectedIds.includes(p.id))
+                  .map((pos) => (
+                    <div key={pos.id} className="flex items-center justify-between py-1.5 px-2 text-xs">
+                      <div className="flex flex-col min-w-0 pr-2">
+                        <span className="font-bold text-[#121b2e] truncate">
+                          {getNamaPosisi(pos)}
+                        </span>
+                        <span className="text-[11px] text-[#4d5f81] truncate">
+                          {getJobCode(pos) ? `${getJobCode(pos)} • ` : ""}{getDepartemen(pos)}
+                        </span>
+                      </div>
+                      <span
+                        className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          getStatus(pos) === "Active"
+                            ? "bg-[#eaf7f0] text-[#16834b]"
+                            : "bg-[#fff1f2] text-[#d64545]"
+                        }`}
+                      >
+                        <span className="size-1 rounded-full bg-current" />
+                        {getStatus(pos)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-[#d64545] font-medium leading-relaxed">
+              Apakah Anda yakin ingin menghapus data posisi terpilih di atas? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#d9e2fc]">
+              <button
+                type="button"
+                onClick={() => setIsBulkDeleteOpen(false)}
+                className="rounded-lg px-4 py-2 text-xs font-bold text-[#4d5f81] hover:bg-[#f1f3ff]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#d64545] px-4 py-2 text-xs font-bold text-white hover:bg-[#b91c1c] disabled:opacity-50"
+              >
+                {isBulkDeleting && <Loader2 size={14} className="animate-spin" />}
+                Hapus {selectedIds.length} Posisi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Konfirmasi Ubah Status Massal (Bulk Status Update) */}
+      {bulkStatusTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f2342]/45 p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
+                  bulkStatusTarget === "Active"
+                    ? "bg-[#eaf7f0] text-[#16834b]"
+                    : "bg-[#f1f3ff] text-[#53657b]"
+                }`}
+              >
+                {bulkStatusTarget === "Active" ? (
+                  <CheckCircle2 size={22} />
+                ) : (
+                  <XCircle size={22} />
+                )}
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#121b2e]">
+                  Konfirmasi Ubah Status ke {bulkStatusTarget}
+                </h3>
+                <p className="text-xs text-[#4d5f81]">
+                  Anda akan mengubah status <b className="text-[#121b2e]">{selectedIds.length} posisi terpilih</b> menjadi{" "}
+                  <b className={bulkStatusTarget === "Active" ? "text-[#16834b]" : "text-[#53657b]"}>
+                    {bulkStatusTarget}
+                  </b>.
+                </p>
+              </div>
+            </div>
+
+            {/* List of positions */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-[#4d5f81]">
+                Daftar Posisi Terpilih ({selectedIds.length})
+              </label>
+              <div className="max-h-52 overflow-y-auto rounded-lg border border-[#becabd]/40 bg-[#f7f8ff] p-2 divide-y divide-[#becabd]/20 space-y-1">
+                {positions
+                  .filter((p) => selectedIds.includes(p.id))
+                  .map((pos) => (
+                    <div key={pos.id} className="flex items-center justify-between py-1.5 px-2 text-xs">
+                      <div className="flex flex-col min-w-0 pr-2">
+                        <span className="font-bold text-[#121b2e] truncate">
+                          {getNamaPosisi(pos)}
+                        </span>
+                        <span className="text-[11px] text-[#4d5f81] truncate">
+                          {getJobCode(pos) ? `${getJobCode(pos)} • ` : ""}{getDepartemen(pos)}
+                        </span>
+                      </div>
+                      <span
+                        className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          getStatus(pos) === "Active"
+                            ? "bg-[#eaf7f0] text-[#16834b]"
+                            : "bg-[#fff1f2] text-[#d64545]"
+                        }`}
+                      >
+                        <span className="size-1 rounded-full bg-current" />
+                        {getStatus(pos)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-[#4d5f81] leading-relaxed">
+              Apakah Anda yakin ingin mengubah status seluruh posisi di atas menjadi{" "}
+              <b className={bulkStatusTarget === "Active" ? "text-[#16834b]" : "text-[#53657b]"}>
+                {bulkStatusTarget}
+              </b>?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#d9e2fc]">
+              <button
+                type="button"
+                disabled={isBulkUpdating}
+                onClick={() => setBulkStatusTarget(null)}
+                className="rounded-lg px-4 py-2 text-xs font-bold text-[#4d5f81] hover:bg-[#f1f3ff] disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBulkUpdateStatus(bulkStatusTarget)}
+                disabled={isBulkUpdating}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm disabled:opacity-50 ${
+                  bulkStatusTarget === "Active"
+                    ? "bg-[#16834b] hover:bg-[#006838]"
+                    : "bg-[#53657b] hover:bg-[#394960]"
+                }`}
+              >
+                {isBulkUpdating && <Loader2 size={14} className="animate-spin" />}
+                Ya, Ubah ke {bulkStatusTarget}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Export / Download */}
       {isExportOpen && (
         <ExportPositionsModal
@@ -505,11 +902,13 @@ function PosisiContent() {
 
 function PositionFormModal({
   title,
+  isEdit = false,
   initialValues,
   onClose,
   onSubmit,
 }: {
   title: string;
+  isEdit?: boolean;
   initialValues?: {
     nama_posisi?: string;
     departemen?: string;
@@ -521,15 +920,16 @@ function PositionFormModal({
   onClose: () => void;
   onSubmit: (vals: Record<string, string | undefined>) => void;
 }) {
+  const [jobCode] = useState(initialValues?.job_code || "");
   const [namaPosisi, setNamaPosisi] = useState(initialValues?.nama_posisi || "");
   const [departemen, setDepartemen] = useState(initialValues?.departemen || DEPARTMENTS[0]);
   const [deskripsi, setDeskripsi] = useState(initialValues?.deskripsi || "");
   const [statusPosisi, setStatusPosisi] = useState<"Active" | "Inactive">(
     initialValues?.status_posisi || "Active"
   );
-  const [lokasi, setLokasi] = useState(initialValues?.lokasi || "");
+  const [lokasi] = useState(initialValues?.lokasi || "HQ - Menara MTH");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ nama_posisi?: string; deskripsi?: string; lokasi?: string }>({});
+  const [errors, setErrors] = useState<{ nama_posisi?: string; deskripsi?: string }>({});
 
   const validate = () => {
     const errs: { nama_posisi?: string; deskripsi?: string } = {};
@@ -548,12 +948,12 @@ function PositionFormModal({
     if (!validate()) return;
     setIsSubmitting(true);
     await onSubmit({
+      ...(isEdit && jobCode ? { job_code: jobCode } : {}),
       nama_posisi: namaPosisi.trim(),
       departemen,
       deskripsi_posisi: deskripsi.trim() || undefined,
-      status_posisi: statusPosisi,
-      lokasi: lokasi.trim() || "HQ",
-      job_code: `JP-${Math.floor(1000 + Math.random() * 9000)}`,
+      status_posisi: isEdit ? statusPosisi : "Active",
+      lokasi: lokasi || "HQ - Menara MTH",
     });
     setIsSubmitting(false);
   };
@@ -568,6 +968,19 @@ function PositionFormModal({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 p-6 text-xs">
+          {isEdit && (
+            <div>
+              <label className="block font-bold text-[#3f4940] mb-1">
+                Kode Posisi
+              </label>
+              <input
+                type="text"
+                value={jobCode}
+                disabled
+                className="w-full rounded-lg border border-[#becabd]/60 bg-[#f1f3ff] px-3 py-2.5 text-[#4d5f81] font-semibold cursor-not-allowed outline-none"
+              />
+            </div>
+          )}
           <div>
             <label className="block font-bold text-[#3f4940] mb-1">
               Nama Posisi <span className="text-[#d64545]">*</span>
@@ -601,20 +1014,14 @@ function PositionFormModal({
           </div>
           <div>
             <label className="block font-bold text-[#3f4940] mb-1">
-              Lokasi <span className="text-[#d64545]">*</span>
+              Lokasi
             </label>
             <input
               type="text"
               value={lokasi}
-              onChange={(e) => setLokasi(e.target.value)}
-              placeholder="Contoh: HQ - Menara MTH"
-              className={`w-full rounded-lg border bg-white px-3 py-2.5 outline-none focus:border-[#069494] ${
-                errors.lokasi ? "border-[#d64545]" : "border-[#becabd]/60"
-              }`}
+              disabled
+              className="w-full rounded-lg border border-[#becabd]/60 bg-[#f1f3ff] px-3 py-2.5 text-[#4d5f81] cursor-not-allowed outline-none font-medium"
             />
-            {errors.lokasi && (
-              <p className="mt-1 text-[11px] font-semibold text-[#d64545]">{errors.lokasi}</p>
-            )}
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -634,24 +1041,26 @@ function PositionFormModal({
               <p className="mt-1 text-[11px] font-semibold text-[#d64545]">{errors.deskripsi}</p>
             )}
           </div>
-          <div>
-            <label className="block font-bold text-[#3f4940] mb-1">Status Posisi</label>
-            <div className="flex gap-4">
-              {(["Active", "Inactive"] as const).map((s) => (
-                <label key={s} className="flex items-center gap-2 cursor-pointer font-medium text-[#121b2e]">
-                  <input
-                    type="radio"
-                    name="status"
-                    value={s}
-                    checked={statusPosisi === s}
-                    onChange={() => setStatusPosisi(s)}
-                    className={s === "Active" ? "accent-[#16834b]" : "accent-[#d64545]"}
-                  />
-                  {s}
-                </label>
-              ))}
+          {isEdit && (
+            <div>
+              <label className="block font-bold text-[#3f4940] mb-1">Status Posisi</label>
+              <div className="flex gap-4">
+                {(["Active", "Inactive"] as const).map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer font-medium text-[#121b2e]">
+                    <input
+                      type="radio"
+                      name="status"
+                      value={s}
+                      checked={statusPosisi === s}
+                      onChange={() => setStatusPosisi(s)}
+                      className={s === "Active" ? "accent-[#16834b]" : "accent-[#d64545]"}
+                    />
+                    {s}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <div className="flex justify-end gap-2 border-t border-[#d9e2fc] pt-4 mt-6">
             <button
               type="button"
@@ -681,8 +1090,8 @@ function PositionDetailModal({ item, onClose }: { item: PositionItem; onClose: (
       <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl overflow-hidden space-y-4">
         <div className="flex items-center justify-between bg-[#1e3765] px-6 py-4 text-white">
           <div>
-            {/* <p className="text-xs text-[#d9e2fc]">{item.position_code || item.id}</p> */}
-            <h2 className="text-base font-bold">{getNamaPosisi(item)}</h2>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#77d8cd]">Kode Posisi</p>
+            <h2 className="text-base font-bold text-white">{getJobCode(item) || "-"}</h2>
           </div>
           <button onClick={onClose} className="rounded p-1 text-[#d9e2fc] hover:bg-white/10">
             <X size={18} />
@@ -690,8 +1099,8 @@ function PositionDetailModal({ item, onClose }: { item: PositionItem; onClose: (
         </div>
         <div className="p-6 space-y-4 text-xs text-[#3f4940]">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Kode Posisi</span>
-            <p className="font-semibold text-[#121b2e]">{getJobCode(item) || "-"}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Nama Posisi</span>
+            <p className="font-bold text-[#121b2e] text-sm">{getNamaPosisi(item) || "-"}</p>
           </div>
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Departemen</span>
@@ -704,7 +1113,7 @@ function PositionDetailModal({ item, onClose }: { item: PositionItem; onClose: (
           <div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">Status</span>
-              <div>
+              <div className="mt-1">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
                     getStatus(item) === "Active"
@@ -712,6 +1121,7 @@ function PositionDetailModal({ item, onClose }: { item: PositionItem; onClose: (
                       : "border-[#fecaca] bg-[#fff1f2] text-[#d64545]"
                   }`}
                 >
+                  <span className="size-1.5 rounded-full bg-current" />
                   {getStatus(item)}
                 </span>
               </div>

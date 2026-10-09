@@ -116,7 +116,7 @@ function LaporanContent() {
       </div>
 
       {/* Export Cards Grid */}
-      <div className="grid gap-6 md:grid-cols-3">
+      {/* <div className="grid gap-6 md:grid-cols-3">
         {reports.map((report) => {
           const Icon = report.icon;
           return (
@@ -163,7 +163,7 @@ function LaporanContent() {
             </div>
           );
         })}
-      </div>
+      </div> */}
 
       {/* Settings Section: Automated Export */}
       <div className="rounded-xl border border-[#becabd]/45 bg-white p-6 shadow-sm space-y-4">

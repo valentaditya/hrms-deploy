@@ -198,9 +198,20 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
     const supabase = getSupabaseApiClient();
     const { position_id } = await params;
 
+    // Remove relations first to maintain referential integrity
+    try {
+      await supabase.from('d1_position_competency_map').delete().eq('position_id', position_id);
+    } catch (_) {}
+    try {
+      await supabase.from('d1_position_certifications').delete().eq('position_id', position_id);
+    } catch (_) {}
+    try {
+      await supabase.from('d1_kpi_definitions').delete().eq('position_id', position_id);
+    } catch (_) {}
+
     const { data, error } = await supabase
       .from('d1_job_positions')
-      .update({ status_posisi: 'Inactive' })
+      .delete()
       .eq('id', position_id)
       .select()
       .maybeSingle();
@@ -213,7 +224,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
       }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, message: 'Position deactivated successfully', data });
+    return NextResponse.json({ success: true, message: 'Position deleted successfully', data });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } },
