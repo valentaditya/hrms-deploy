@@ -11,7 +11,7 @@ import {
   Filter,
   ShieldCheck,
 } from "lucide-react";
-import { PositionItem } from "@/app/manajemen-posisi-dan-kompetensi/posisi/page";
+import { PositionItem } from "@/types/posisi";
 import {
   exportPositionsToCSV,
   exportPositionsToExcel,

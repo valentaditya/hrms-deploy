@@ -17,6 +17,7 @@ import {
   Clock,
   BarChart3,
   Loader2,
+  Search,
 } from "lucide-react";
 import ExportKpiModal from "@/components/posisi-kompetensi/ExportKpiModal";
 
@@ -57,6 +58,7 @@ function KpiContent() {
   const [kpiGroups, setKpiGroups] = useState<PositionKpiGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -116,10 +118,18 @@ function KpiContent() {
   useEffect(() => { fetchAll(); }, []);
 
   const filteredGroups = useMemo(() => {
-    return kpiGroups.filter(
-      (g) => selectedDepartment === "ALL" || g.department === selectedDepartment
-    );
-  }, [kpiGroups, selectedDepartment]);
+    const query = searchQuery.trim().toLowerCase();
+    return kpiGroups.filter((group) => {
+      const matchesDepartment = selectedDepartment === "ALL" || group.department === selectedDepartment;
+      const searchableValues = [
+        group.positionName,
+        group.department,
+        ...group.kpis.flatMap((kpi) => [getKpiName(kpi), getKpiTarget(kpi), String(getKpiWeight(kpi))]),
+      ];
+      const matchesSearch = !query || searchableValues.some((value) => value.toLowerCase().includes(query));
+      return matchesDepartment && matchesSearch;
+    });
+  }, [kpiGroups, searchQuery, selectedDepartment]);
 
   const handleSaveKpi = async (posId: string, kpis: KpiRow[]) => {
     const invalidRow = kpis.findIndex((kpi) =>
@@ -145,6 +155,47 @@ function KpiContent() {
         return;
       }
 
+      const existingKpis: KpiRow[] = existingJson.data || [];
+      const restoreKpis = async (rows: KpiRow[]) => {
+        if (rows.length === 0) return true;
+        try {
+          const restoreRes = await fetch("/api/d1/kpi", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              position_id: posId,
+              validate_total_weight: false,
+              kpis: rows.map((k) => ({
+                kpi_name: getKpiName(k),
+                kpi_target: getKpiTarget(k),
+                kpi_weight: getKpiWeight(k),
+              })),
+            }),
+          });
+          return restoreRes.ok;
+        } catch {
+          return false;
+        }
+      };
+
+      const deleteResults = await Promise.allSettled(
+        existingKpis.map((k) => fetch(`/api/d1/kpi/${k.id}`, { method: "DELETE" }))
+      );
+      const deletedKpis = existingKpis.filter((_, index) => {
+        const result = deleteResults[index];
+        return result.status === "fulfilled" && result.value.ok;
+      });
+      if (deletedKpis.length !== existingKpis.length) {
+        const restored = await restoreKpis(deletedKpis);
+        await fetchAll();
+        showNotification(
+          restored
+            ? "Gagal menghapus KPI lama. Proses simpan dibatalkan."
+            : "Gagal menghapus KPI lama dan sebagian data lama tidak berhasil dipulihkan."
+        );
+        return;
+      }
+
       const res = await fetch("/api/d1/kpi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,25 +210,23 @@ function KpiContent() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification(`Error: ${json.error?.message}`);
+        const restored = await restoreKpis(existingKpis);
+        await fetchAll();
+        const recoveryMessage = existingKpis.length === 0
+          ? ""
+          : restored
+            ? " KPI lama telah dipulihkan."
+            : " KPI lama gagal dipulihkan.";
+        showNotification(`Error: ${json.error?.message || "Gagal menyimpan KPI."}${recoveryMessage}`);
         return;
       }
 
-      const deleteResults = await Promise.all(
-        (existingJson.data || []).map((k: any) =>
-          fetch(`/api/d1/kpi/${k.id}`, { method: "DELETE" })
-        )
-      );
       await fetchAll();
       setIsModalOpen(false);
       setEditPositionId(null);
 
       const posName = positions.find((p) => p.id === posId)?.nama_posisi || positions.find((p) => p.id === posId)?.name || posId;
-      if (deleteResults.some((result) => !result.ok)) {
-        showNotification(`KPI baru tersimpan, tetapi KPI lama untuk "${posName}" belum seluruhnya terhapus.`);
-      } else {
-        showNotification(`Definisi KPI untuk "${posName}" berhasil disimpan.`);
-      }
+      showNotification(`Definisi KPI untuk "${posName}" berhasil disimpan.`);
     } catch {
       showNotification("Gagal menyimpan KPI.");
     }
@@ -250,21 +299,45 @@ function KpiContent() {
       </div>
 
       {/* Department Filter */}
-      <div className="flex items-center justify-between rounded-xl border border-[#becabd]/45 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-xl border border-[#becabd]/45 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs font-bold text-[#1e3765]">
           <BarChart3 size={16} className="text-[#069494]" />
           <span>Filter Departemen:</span>
         </div>
-        <select
-          value={selectedDepartment}
-          onChange={(e) => setSelectedDepartment(e.target.value)}
-          className="rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] px-3 py-1.5 text-xs font-semibold text-[#1e3765] outline-none"
-        >
-          <option value="ALL">Semua Departemen</option>
-          {DEPARTMENTS.map((dept) => (
-            <option key={dept} value={dept}>{dept}</option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-80">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#4d5f81]/70" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari posisi, indikator KPI, atau target..."
+              aria-label="Cari definisi KPI"
+              className="w-full rounded-lg border border-[#becabd]/60 bg-white py-2 pl-9 pr-9 text-xs outline-none focus:border-[#069494]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                aria-label="Hapus pencarian"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#4d5f81] hover:bg-[#f1f3ff]"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <select
+            value={selectedDepartment}
+            onChange={(e) => setSelectedDepartment(e.target.value)}
+            aria-label="Filter departemen"
+            className="rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] px-3 py-2 text-xs font-semibold text-[#1e3765] outline-none"
+          >
+            <option value="ALL">Semua Departemen</option>
+            {DEPARTMENTS.map((dept) => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -275,7 +348,11 @@ function KpiContent() {
       ) : filteredGroups.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-sm text-[#4d5f81] rounded-xl border border-[#becabd]/45 bg-white">
           <Award size={32} className="text-[#becabd]" />
-          <p>Belum ada definisi KPI. Klik &quot;Atur / Tambah Definisi KPI&quot; untuk memulai.</p>
+          <p>
+            {searchQuery.trim() || selectedDepartment !== "ALL"
+              ? "Tidak ada definisi KPI yang cocok dengan pencarian atau filter."
+              : 'Belum ada definisi KPI. Klik "Atur / Tambah Definisi KPI" untuk memulai.'}
+          </p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -482,9 +559,18 @@ function MultiStepKpiModal({
   };
 
   const handleSave = async () => {
-    if (!isValid) return;
+    const normalizedKpis = kpis.map((kpi) => ({
+      ...kpi,
+      kpi_weight: Math.min(getKpiWeight(kpi), 100),
+    }));
+    setKpis(normalizedKpis);
+
+    const normalizedTotal = normalizedKpis.reduce((sum, kpi) => sum + getKpiWeight(kpi), 0);
+    const normalizedWeightsValid = normalizedTotal === 100 && normalizedKpis.every((kpi) => getKpiWeight(kpi) > 0);
+    if (!hasCompleteKpiDetails || !normalizedWeightsValid) return;
+
     setIsSaving(true);
-    await onSave(positionId, kpis);
+    await onSave(positionId, normalizedKpis);
     localStorage.removeItem("kpi_draft");
     setIsSaving(false);
   };
@@ -588,6 +674,11 @@ function MultiStepKpiModal({
                         max={100}
                         value={getKpiWeight(row)}
                         onChange={(e) => updateRow(row.id!, "kpi_weight", Number(e.target.value))}
+                        onBlur={(e) => {
+                          if (Number(e.currentTarget.value) > 100) {
+                            updateRow(row.id!, "kpi_weight", 100);
+                          }
+                        }}
                         className="w-full rounded border border-[#becabd]/60 bg-white px-2 py-1.5 pr-5 text-right font-bold outline-none focus:border-[#069494]"
                       />
                       <span className="absolute right-1.5 top-1.5 text-[10px] text-[#4d5f81]">%</span>
@@ -633,7 +724,7 @@ function MultiStepKpiModal({
                   <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 font-bold text-[#4d5f81] hover:bg-[#f1f3ff]">Batal</button>
                   <button
                     type="button"
-                    disabled={!isValid || isSaving}
+                    disabled={(!isValid && !kpis.some((kpi) => getKpiWeight(kpi) > 100)) || isSaving}
                     onClick={handleSave}
                     className="inline-flex items-center gap-2 rounded-lg bg-[#16834b] px-4 py-2 font-bold text-white hover:bg-[#006838] disabled:cursor-not-allowed disabled:opacity-50"
                   >

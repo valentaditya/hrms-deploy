@@ -47,6 +47,53 @@ interface PositionOption {
   department?: string;
 }
 
+const DEMO_POSITION_ID = "demo-accounting-associate";
+const DEMO_POSITION: PositionOption = {
+  id: DEMO_POSITION_ID,
+  nama_posisi: "Accounting Associate",
+  departemen: DEPARTMENTS[0],
+};
+
+const DEMO_COMPETENCIES = [
+  { name: "Rekonsiliasi Piutang (AR)", category: "Teknis", required: 4, current: 3 },
+  { name: "Penutupan Buku Bulanan", category: "Teknis", required: 4, current: 2 },
+  { name: "Rekonsiliasi Bank", category: "Teknis", required: 3, current: 3 },
+  { name: "Penggunaan ERP Keuangan", category: "Teknis", required: 3, current: 4 },
+  { name: "Analisis Varians Anggaran", category: "Analitis", required: 4, current: 2 },
+  { name: "Pengendalian Internal", category: "Kepatuhan", required: 4, current: 3 },
+];
+
+function createDemoGapData(employeeId = "EMP-DEMO-001"): GapItem[] {
+  return DEMO_COMPETENCIES.map((competency, index) => {
+    const gap = competency.current - competency.required;
+    const isCompetent = gap >= 0;
+    const hasSignificantGap = gap <= -2;
+
+    return {
+      employee_id: employeeId,
+      employee_name: "Andi Pratama (Contoh)",
+      position_id: DEMO_POSITION_ID,
+      position_name: DEMO_POSITION.nama_posisi || "Accounting Associate",
+      competency_id: `demo-competency-${index + 1}`,
+      competency_name: competency.name,
+      category: competency.category,
+      level_required: competency.required,
+      level_current: competency.current,
+      gap,
+      gap_status: isCompetent
+        ? "Kompeten"
+        : hasSignificantGap
+          ? "Kesenjangan Signifikan"
+          : "Kesenjangan Sedang",
+      recommendation: isCompetent
+        ? "Maintain"
+        : hasSignificantGap
+          ? "Prioritas Pelatihan"
+          : "Latih",
+    };
+  });
+}
+
 function GapAnalysisContent() {
   const [positions, setPositions] = useState<PositionOption[]>([]);
   const [gapData, setGapData] = useState<GapItem[]>([]);
@@ -60,6 +107,7 @@ function GapAnalysisContent() {
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDemoData, setIsDemoData] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [toast, setToast] = useState<string>("");
 
@@ -68,23 +116,48 @@ function GapAnalysisContent() {
     setTimeout(() => setToast(""), 3500);
   };
 
+  const loadDemoData = () => {
+    setPositions((current) =>
+      current.some((position) => position.id === DEMO_POSITION_ID)
+        ? current
+        : [DEMO_POSITION, ...current]
+    );
+    setSelectedPositionId(DEMO_POSITION_ID);
+    setEmployeeIdInput("EMP-DEMO-001");
+    setGapData(createDemoGapData());
+    setSelectedDept("ALL");
+    setSelectedStatus("ALL");
+    setSearch("");
+    setCurrentPage(1);
+    setError(null);
+    setIsDemoData(true);
+  };
+
   // Load positions list
   useEffect(() => {
     fetch("/api/d1/positions?limit=100&status=Active")
       .then((r) => r.json())
       .then((json) => {
-        if (json.success) {
-          setPositions(json.data.positions || []);
-          if (json.data.positions?.length > 0) {
-            setSelectedPositionId(json.data.positions[0].id);
-          }
+        const loadedPositions = json.success ? json.data.positions || [] : [];
+        if (loadedPositions.length > 0) {
+          setPositions(loadedPositions);
+          setSelectedPositionId(loadedPositions[0].id);
+        } else {
+          loadDemoData();
         }
       })
+      .catch(() => loadDemoData())
       .finally(() => setLoadingPositions(false));
   }, []);
 
   const handleRunAnalysis = async () => {
     if (!selectedPositionId) return;
+    if (selectedPositionId === DEMO_POSITION_ID) {
+      setGapData(createDemoGapData(employeeIdInput.trim() || "EMP-DEMO-001"));
+      setIsDemoData(true);
+      setError(null);
+      return;
+    }
     setLoadingGap(true);
     setError(null);
     try {
@@ -108,6 +181,7 @@ function GapAnalysisContent() {
           recommendation: g.recommendation,
         }));
         setGapData(flatItems);
+        setIsDemoData(false);
         setCurrentPage(1);
       } else {
         setError(json.error?.message || "Gagal menjalankan gap analysis.");
@@ -190,12 +264,20 @@ function GapAnalysisContent() {
             ) : (
               <select
                 value={selectedPositionId}
-                onChange={(e) => setSelectedPositionId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedPositionId(e.target.value);
+                  if (isDemoData && e.target.value !== DEMO_POSITION_ID) {
+                    setGapData([]);
+                    setIsDemoData(false);
+                  }
+                }}
                 className="w-full rounded-lg border border-[#becabd]/60 bg-[#f7f8ff] px-3 py-2.5 text-xs font-semibold text-[#1e3765] outline-none focus:border-[#069494]"
               >
                 {positions.map((pos) => (
                   <option key={pos.id} value={pos.id}>
-                    {pos.id} — {pos.nama_posisi || pos.name}
+                    {pos.id === DEMO_POSITION_ID
+                      ? `${pos.nama_posisi || pos.name} (Data Contoh)`
+                      : `${pos.id} — ${pos.nama_posisi || pos.name}`}
                   </option>
                 ))}
               </select>
@@ -203,7 +285,7 @@ function GapAnalysisContent() {
           </div>
           <div className="flex-1">
             <label className="block text-[11px] font-semibold text-[#4d5f81] mb-1">
-              ID Karyawan <span className="font-normal">(opsional, default: test)</span>
+              ID Karyawan <span className="font-normal">(opsional, contoh: EMP-DEMO-001)</span>
             </label>
             <input
               type="text"
@@ -221,6 +303,13 @@ function GapAnalysisContent() {
             {loadingGap ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             Jalankan Analisis
           </button>
+          <button
+            type="button"
+            onClick={loadDemoData}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#becabd]/60 bg-white px-4 py-2.5 text-xs font-bold text-[#1e3765] hover:bg-[#f7f8ff]"
+          >
+            <BookOpen size={14} /> Muat Data Contoh
+          </button>
         </div>
         {error && (
           <div className="flex items-center gap-2 rounded-lg bg-[#fff1f2] border border-[#fecaca] px-4 py-3 text-xs font-semibold text-[#d64545]">
@@ -228,6 +317,13 @@ function GapAnalysisContent() {
           </div>
         )}
       </div>
+
+      {/* {isDemoData && gapData.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-[#fde68a] bg-[#fef9c3] px-4 py-3 text-xs text-[#805b12]">
+          <AlertCircle size={15} className="mt-0.5 shrink-0" />
+          <p><b>Mode data contoh:</b> hasil ini hanya simulasi lokal dan tidak disimpan ke database.</p>
+        </div>
+      )} */}
 
       {/* Summary Cards */}
       {gapData.length > 0 && (

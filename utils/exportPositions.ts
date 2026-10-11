@@ -6,7 +6,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { PositionItem } from "@/app/manajemen-posisi-dan-kompetensi/posisi/page";
+import { PositionItem } from "@/types/posisi";
 
 function getNamaPosisi(pos: PositionItem) {
   return pos.nama_posisi || pos.name || "-";
