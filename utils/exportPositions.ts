@@ -20,8 +20,8 @@ function getDeskripsi(pos: PositionItem) {
   return pos.deskripsi_posisi || pos.deskripsi || "-";
 }
 
-function getStatus(pos: PositionItem): "Active" | "Inactive" {
-  return (pos.status_posisi || pos.status || "Active") as "Active" | "Inactive";
+function getStatus(pos: PositionItem): "Active" | "Inactive" | "Deleted" {
+  return (pos.status_posisi || pos.status || "Active") as "Active" | "Inactive" | "Deleted";
 }
 
 

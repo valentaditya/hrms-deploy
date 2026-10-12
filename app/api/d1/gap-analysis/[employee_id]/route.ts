@@ -8,22 +8,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ empl
     const { searchParams } = new URL(request.url);
     let positionId = searchParams.get('position_id');
 
-    let positionName = 'Position Standard';
-    let employeeName = `Employee ${employee_id}`;
+    const { data: empData, error: employeeError } = await supabase
+      .from('employees')
+      .select('position_id, full_name, name')
+      .or(`id.eq.${employee_id},employee_id.eq.${employee_id}`)
+      .maybeSingle();
+
+    if (employeeError) throw employeeError;
+    if (!empData) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Karyawan tidak ditemukan' } },
+        { status: 404 }
+      );
+    }
+    const employeeName = empData.full_name || empData.name || employee_id;
 
     if (!positionId) {
-      const { data: empData } = await supabase
-        .from('employees')
-        .select('position_id, full_name, name')
-        .or(`id.eq.${employee_id},employee_id.eq.${employee_id}`)
-        .maybeSingle();
-
-      if (empData) {
-        positionId = empData.position_id;
-        employeeName = empData.full_name || empData.name || employeeName;
-      }
+      positionId = empData.position_id;
     }
-
     if (!positionId) {
       return NextResponse.json(
         { success: false, error: { code: 'VALIDATION_ERROR', message: 'position_id diperlukan untuk gap analysis' } },
@@ -31,15 +33,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ empl
       );
     }
 
-    const { data: posData } = await supabase
+    const { data: posData, error: positionError } = await supabase
       .from('d1_job_positions')
       .select('nama_posisi, name')
       .eq('id', positionId)
       .maybeSingle();
 
-    if (posData) {
-      positionName = posData.nama_posisi || posData.name || positionName;
+    if (positionError) throw positionError;
+    if (!posData) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Posisi tidak ditemukan' } },
+        { status: 404 }
+      );
     }
+    const positionName = posData.nama_posisi || posData.name || positionId;
 
     const { data: requiredComps, error: reqError } = await supabase
       .from('d1_position_competency_map')
@@ -53,14 +60,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ empl
 
     if (reqError) throw reqError;
 
-    const { data: empComps } = await supabase
+    const { data: empComps, error: employeeCompetenciesError } = await supabase
       .from('employee_competencies')
       .select('competency_id, current_level, level')
-      .or(`employee_id.eq.${employee_id},id.eq.${employee_id}`);
+      .eq('employee_id', employee_id);
 
-    const actualComps = empComps || [
-      { competency_id: 'comp-001', current_level: 3 }
-    ];
+    if (employeeCompetenciesError) throw employeeCompetenciesError;
+    const actualComps = empComps || [];
     const summary = {
       total_competencies: (requiredComps || []).length,
       kompeten: 0,

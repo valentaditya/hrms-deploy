@@ -6,7 +6,7 @@ export interface PositionItem {
   department?: string;
   deskripsi_posisi?: string;
   deskripsi?: string;
-  status_posisi?: "Active" | "Inactive";
+  status_posisi?: "Active" | "Inactive" | "Deleted";
   status?: string;
   created_at?: string;
   position_code?: string;

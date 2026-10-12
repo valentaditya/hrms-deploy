@@ -41,7 +41,6 @@ export default function ExportGapModal({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const targetData = scope === "filtered" ? filteredGaps : allGaps;
-  const totalKompeten = targetData.filter((i) => i.gap >= 0).length;
 
   const handleDownload = async () => {
     setIsProcessing(true);
@@ -50,10 +49,10 @@ export default function ExportGapModal({
         exportGapToPDF(targetData);
         onSuccessToast?.("File PDF (.pdf) gap analysis berhasil diunduh.");
       } else if (selectedFormat === "excel") {
-        exportGapToExcel(targetData, "Laporan_Gap_Kompetensi_Andima");
+        exportGapToExcel(targetData, "Laporan_Gap_KPI_Andima");
         onSuccessToast?.("File Excel (.xlsx) gap analysis berhasil diunduh.");
       } else if (selectedFormat === "csv") {
-        exportGapToCSV(targetData, "Laporan_Gap_Kompetensi_Andima");
+        exportGapToCSV(targetData, "Laporan_Gap_KPI_Andima");
         onSuccessToast?.("File CSV (.csv) gap analysis berhasil diunduh.");
       }
       onClose();

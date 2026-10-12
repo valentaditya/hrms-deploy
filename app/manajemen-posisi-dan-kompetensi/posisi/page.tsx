@@ -33,7 +33,7 @@ export interface PositionItem {
   department?: string;
   deskripsi_posisi?: string;
   deskripsi?: string;
-  status_posisi?: "Active" | "Inactive";
+  status_posisi?: "Active" | "Inactive" | "Deleted";
   status?: string;
   created_at?: string;
   position_code?: string;
@@ -50,8 +50,8 @@ function getDepartemen(pos: PositionItem) {
 function getDeskripsi(pos: PositionItem) {
   return pos.deskripsi_posisi || pos.deskripsi || "";
 }
-function getStatus(pos: PositionItem): "Active" | "Inactive" {
-  return (pos.status_posisi || pos.status || "Active") as "Active" | "Inactive";
+function getStatus(pos: PositionItem): "Active" | "Inactive" | "Deleted" {
+  return (pos.status_posisi || pos.status || "Active") as "Active" | "Inactive" | "Deleted";
 }
 
 function getJobCode(pos: PositionItem) {
@@ -96,6 +96,8 @@ function PosisiContent() {
   const [editItem, setEditItem] = useState<PositionItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [restoreId, setRestoreId] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -130,6 +132,7 @@ function PosisiContent() {
   }, []);
 
   const filteredPositions = useMemo(() => {
+    const statusOrder = { Active: 0, Inactive: 1, Deleted: 2 };
     return positions.filter((pos) => {
       const nama = getNamaPosisi(pos).toLowerCase();
       const kode = getJobCode(pos).toLowerCase();
@@ -146,7 +149,7 @@ function PosisiContent() {
         statusFilter === "ALL" || getStatus(pos) === statusFilter;
       return matchSearch && matchDept && matchStatus;
       
-    });
+    }).sort((a, b) => statusOrder[getStatus(a)] - statusOrder[getStatus(b)]);
   }, [positions, search, departmentFilter, statusFilter]);
 
   useEffect(() => {
@@ -244,7 +247,13 @@ function PosisiContent() {
         await fetchPositions();
         setDeleteId(null);
         setSelectedIds((prev) => prev.filter((item) => item !== id));
-        if (target) showNotification(`Posisi "${getNamaPosisi(target)}" berhasil dihapus.`);
+        if (target) {
+          showNotification(
+            getStatus(target) === "Deleted"
+              ? `Posisi "${getNamaPosisi(target)}" dihapus permanen.`
+              : `Posisi "${getNamaPosisi(target)}" dipindahkan ke Deleted.`
+          );
+        }
       } else {
         showNotification(`Error: ${json.error?.message}`);
       }
@@ -255,7 +264,34 @@ function PosisiContent() {
     }
   };
 
+  const handleRestorePosition = async (id: string) => {
+    setIsRestoring(true);
+    try {
+      const res = await fetch(`/api/d1/positions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status_posisi: "Active" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchPositions();
+        setRestoreId(null);
+        showNotification("Posisi berhasil dipulihkan dengan status Active.");
+      } else {
+        showNotification(`Error: ${json.error?.message}`);
+      }
+    } catch {
+      showNotification("Gagal memulihkan posisi.");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
+    const permanentlyDeletedCount = positions.filter(
+      (position) => selectedIds.includes(position.id) && getStatus(position) === "Deleted"
+    ).length;
+    const movedToDeletedCount = selectedIds.length - permanentlyDeletedCount;
     setIsBulkDeleting(true);
     try {
       await Promise.all(
@@ -267,7 +303,11 @@ function PosisiContent() {
       const count = selectedIds.length;
       setSelectedIds([]);
       setIsBulkDeleteOpen(false);
-      showNotification(`${count} posisi terpilih berhasil dihapus.`);
+      const outcomes = [
+        movedToDeletedCount > 0 && `${movedToDeletedCount} posisi dipindahkan ke Deleted`,
+        permanentlyDeletedCount > 0 && `${permanentlyDeletedCount} posisi dihapus permanen`,
+      ].filter(Boolean);
+      showNotification(outcomes.join("; ") || `${count} posisi selesai diproses.`);
     } catch {
       showNotification("Sebagian atau seluruh posisi gagal dihapus.");
     } finally {
@@ -302,7 +342,13 @@ function PosisiContent() {
   };
 
   const activeCount = positions.filter((p) => getStatus(p) === "Active").length;
+  const inactiveCount = positions.filter((p) => getStatus(p) === "Inactive").length;
   const deptSet = new Set(positions.map(getDepartemen).filter(Boolean));
+  const deleteTarget = positions.find((position) => position.id === deleteId);
+  const isPermanentDelete = deleteTarget ? getStatus(deleteTarget) === "Deleted" : false;
+  const selectedDeletedCount = positions.filter(
+    (position) => selectedIds.includes(position.id) && getStatus(position) === "Deleted"
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -383,7 +429,7 @@ function PosisiContent() {
               <Award size={16} />
             </span>
           </div>
-          <p className="mt-2 text-2xl font-bold text-[#d64545]">{positions.length - activeCount}</p>
+          <p className="mt-2 text-2xl font-bold text-[#d64545]">{inactiveCount}</p>
         </div>
       </div>
 
@@ -451,6 +497,7 @@ function PosisiContent() {
               <option value="ALL">Semua Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
+              <option value="Deleted">Deleted</option>
             </select>
           </div>
 
@@ -594,7 +641,9 @@ function PosisiContent() {
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
                             getStatus(item) === "Active"
                               ? "border-[#bbf0d2] bg-[#eaf7f0] text-[#16834b]"
-                              : "border-[#fecaca] bg-[#fff1f2] text-[#d64545]"
+                              : getStatus(item) === "Inactive"
+                                ? "border-[#fecaca] bg-[#fff1f2] text-[#d64545]"
+                                : "border-[#becabd] bg-[#f1f3ff] text-[#53657b]"
                           }`}
                         >
                           <span className="size-1.5 rounded-full bg-current" />
@@ -610,7 +659,7 @@ function PosisiContent() {
                           >
                             <Eye size={15} />
                           </button>
-                          {viewRole === "manager" && (
+                          {viewRole === "manager" && getStatus(item) !== "Deleted" && (
                             <>
                               <button
                                 onClick={() => setEditItem(item)}
@@ -623,6 +672,26 @@ function PosisiContent() {
                                 onClick={() => setDeleteId(item.id)}
                                 className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#fff1f2] hover:text-[#d64545]"
                                 title="Hapus Posisi"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </>
+                          )}
+                          {viewRole === "manager" && getStatus(item) === "Deleted" && (
+                            <>
+                              <button
+                                onClick={() => setRestoreId(item.id)}
+                                className="rounded p-1.5 text-[#16834b] transition hover:bg-[#eaf7f0]"
+                                title="Pulihkan Posisi"
+                                aria-label="Pulihkan Posisi"
+                              >
+                                <RotateCcw size={15} />
+                              </button>
+                              <button
+                                onClick={() => setDeleteId(item.id)}
+                                className="rounded p-1.5 text-[#4d5f81] transition hover:bg-[#fff1f2] hover:text-[#d64545]"
+                                title="Hapus ke Deleted"
+                                aria-label="Hapus ke Deleted"
                               >
                                 <Trash2 size={15} />
                               </button>
@@ -670,7 +739,7 @@ function PosisiContent() {
             nama_posisi: getNamaPosisi(editItem),
             departemen: getDepartemen(editItem),
             deskripsi: getDeskripsi(editItem),
-            status_posisi: getStatus(editItem),
+            status_posisi: getStatus(editItem) === "Inactive" ? "Inactive" : "Active",
             job_code: getJobCode(editItem),
             lokasi: getLokasi(editItem) || "HQ - Menara MTH",
           }}
@@ -693,7 +762,9 @@ function PosisiContent() {
               <h3 className="text-base font-bold text-[#121b2e]">Konfirmasi Hapus Posisi</h3>
             </div>
             <p className="text-xs text-[#4d5f81] leading-relaxed">
-              Apakah Anda yakin ingin menghapus data posisi ini secara permanen? Data yang dihapus tidak dapat dipulihkan kembali.
+              {isPermanentDelete
+                ? "Posisi berstatus Deleted akan dihapus permanen bersama data kompetensi, sertifikasi, dan KPI terkait. Tindakan ini tidak dapat dibatalkan."
+                : "Posisi akan dipindahkan ke status Deleted dan dapat dipulihkan nanti."}
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -708,7 +779,40 @@ function PosisiContent() {
                 className="inline-flex items-center gap-2 rounded-lg bg-[#d64545] px-4 py-2 text-xs font-bold text-white hover:bg-[#b91c1c] disabled:opacity-50"
               >
                 {isDeleting && <Loader2 size={14} className="animate-spin" />}
-                Hapus Posisi
+                {isPermanentDelete ? "Hapus Permanen" : "Pindahkan ke Deleted"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {restoreId && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f2342]/45 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-3 text-[#16834b]">
+              <RotateCcw size={24} />
+              <h3 className="text-base font-bold text-[#121b2e]">Konfirmasi Pulihkan Posisi</h3>
+            </div>
+            <p className="text-xs leading-relaxed text-[#4d5f81]">
+              Pulihkan posisi ini? Statusnya akan kembali menjadi Active.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setRestoreId(null)}
+                disabled={isRestoring}
+                className="rounded-lg px-4 py-2 text-xs font-bold text-[#4d5f81] hover:bg-[#f1f3ff] disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRestorePosition(restoreId)}
+                disabled={isRestoring}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#16834b] px-4 py-2 text-xs font-bold text-white hover:bg-[#006838] disabled:opacity-50"
+              >
+                {isRestoring && <Loader2 size={14} className="animate-spin" />}
+                Pulihkan Posisi
               </button>
             </div>
           </div>
@@ -726,7 +830,9 @@ function PosisiContent() {
               <div>
                 <h3 className="text-base font-bold text-[#121b2e]">Konfirmasi Hapus Massal</h3>
                 <p className="text-xs text-[#4d5f81]">
-                  Menghapus <b className="text-[#d64545]">{selectedIds.length} posisi</b> secara permanen.
+                  {selectedDeletedCount > 0
+                    ? `${selectedDeletedCount} posisi Deleted akan dihapus permanen; ${selectedIds.length - selectedDeletedCount} posisi lainnya dipindahkan ke Deleted.`
+                    : `Memindahkan ${selectedIds.length} posisi ke status Deleted.`}
                 </p>
               </div>
             </div>
@@ -765,7 +871,9 @@ function PosisiContent() {
             </div>
 
             <p className="text-xs text-[#d64545] font-medium leading-relaxed">
-              Apakah Anda yakin ingin menghapus data posisi terpilih di atas? Tindakan ini tidak dapat dibatalkan.
+              {selectedDeletedCount > 0
+                ? "Penghapusan posisi Deleted tidak dapat dibatalkan."
+                : "Posisi yang dipindahkan ke Deleted masih dapat dipulihkan."}
             </p>
             <div className="flex justify-end gap-2 pt-2 border-t border-[#d9e2fc]">
               <button
@@ -914,7 +1022,7 @@ function PositionFormModal({
     departemen?: string;
     deskripsi?: string;
     job_code?: string;
-    status_posisi?: "Active" | "Inactive";
+    status_posisi?: "Active" | "Inactive" | "Deleted";
     lokasi?: string;
   };
   onClose: () => void;
@@ -925,7 +1033,7 @@ function PositionFormModal({
   const [departemen, setDepartemen] = useState(initialValues?.departemen || DEPARTMENTS[0]);
   const [deskripsi, setDeskripsi] = useState(initialValues?.deskripsi || "");
   const [statusPosisi, setStatusPosisi] = useState<"Active" | "Inactive">(
-    initialValues?.status_posisi || "Active"
+    initialValues?.status_posisi === "Inactive" ? "Inactive" : "Active"
   );
   const [lokasi] = useState(initialValues?.lokasi || "HQ - Menara MTH");
   const [isSubmitting, setIsSubmitting] = useState(false);

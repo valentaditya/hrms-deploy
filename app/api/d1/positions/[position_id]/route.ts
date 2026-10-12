@@ -127,7 +127,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ posi
       updatePayload.deskripsi_posisi = deskripsi.trim();
     }
     if (statusPosisi !== undefined) {
-      if (statusPosisi !== 'Active' && statusPosisi !== 'Inactive') {
+      if (statusPosisi !== 'Active' && statusPosisi !== 'Inactive' && statusPosisi !== 'Deleted') {
         return NextResponse.json({
           success: false,
           error: { code: 'VALIDATION_ERROR', message: 'Status posisi tidak valid' }
@@ -198,16 +198,42 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
     const supabase = getSupabaseApiClient();
     const { position_id } = await params;
 
-    // Remove relations first to maintain referential integrity
-    try {
-      await supabase.from('d1_position_competency_map').delete().eq('position_id', position_id);
-    } catch (_) {}
-    try {
-      await supabase.from('d1_position_certifications').delete().eq('position_id', position_id);
-    } catch (_) {}
-    try {
-      await supabase.from('d1_kpi_definitions').delete().eq('position_id', position_id);
-    } catch (_) {}
+    const { data: position, error: lookupError } = await supabase
+      .from('d1_job_positions')
+      .select('id, status_posisi')
+      .eq('id', position_id)
+      .maybeSingle();
+
+    if (lookupError) throw lookupError;
+    if (!position) {
+      return NextResponse.json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Posisi tidak ditemukan' }
+      }, { status: 404 });
+    }
+
+    if (position.status_posisi !== 'Deleted') {
+      const { data, error } = await supabase
+        .from('d1_job_positions')
+        .update({ status_posisi: 'Deleted' })
+        .eq('id', position_id)
+        .select()
+        .maybeSingle();
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: 'Position moved to Deleted', data });
+    }
+
+    const relations = [
+      'd1_position_competency_map',
+      'd1_position_certifications',
+      'd1_kpi_definitions',
+    ] as const;
+
+    for (const table of relations) {
+      const { error } = await supabase.from(table).delete().eq('position_id', position_id);
+      if (error) throw error;
+    }
 
     const { data, error } = await supabase
       .from('d1_job_positions')
@@ -224,7 +250,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ p
       }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, message: 'Position deleted successfully', data });
+    return NextResponse.json({ success: true, message: 'Position permanently deleted', data });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } },

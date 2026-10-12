@@ -22,19 +22,17 @@ function getShortDate() {
 /**
  * 1. Export Gap Analysis as CSV (RFC-4180 with UTF-8 BOM)
  */
-export function exportGapToCSV(data: GapItem[], filenamePrefix = "Laporan_Gap_Kompetensi_Andima") {
+export function exportGapToCSV(data: GapItem[], filenamePrefix = "Laporan_Gap_KPI_Andima") {
   const headers = [
     "No",
     "ID Karyawan",
     "Nama Karyawan",
-    "Posisi Target",
-    "Nama Kompetensi",
-    "Kategori",
-    "Standar (Required)",
-    "Aktual (Current)",
+    "Posisi Kompetensi",
+    "Departemen",
+    "Nilai KPI Posisi",
+    "Nilai KPI Harian",
     "Gap",
-    "Status Gap",
-    "Rekomendasi Tindakan",
+    "Status",
   ];
 
   const escapeCSV = (value: string | number | undefined | null) => {
@@ -48,13 +46,11 @@ export function exportGapToCSV(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
     escapeCSV(item.employee_id),
     escapeCSV(item.employee_name),
     escapeCSV(item.position_name),
-    escapeCSV(item.competency_name),
-    escapeCSV(item.category),
-    item.level_required,
-    item.level_current,
-    item.gap,
-    escapeCSV(item.gap_status),
-    escapeCSV(item.recommendation),
+    escapeCSV(item.department),
+    item.kpi_position_score,
+    item.kpi_daily_score,
+    item.gap > 0 ? `+${item.gap}` : item.gap,
+    escapeCSV(item.status),
   ]);
 
   const csvContent = "\uFEFF" + [
@@ -76,54 +72,52 @@ export function exportGapToCSV(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
 /**
  * 2. Export Gap Analysis as Microsoft Excel (.xlsx)
  */
-export function exportGapToExcel(data: GapItem[], filenamePrefix = "Laporan_Gap_Kompetensi_Andima") {
-  const totalKompeten = data.filter((i) => i.gap >= 0).length;
-  const totalSedang = data.filter((i) => i.gap === -1).length;
-  const totalSignifikan = data.filter((i) => i.gap <= -2).length;
+export function exportGapToExcel(data: GapItem[], filenamePrefix = "Laporan_Gap_KPI_Andima") {
+  const totalGood = data.filter((i) => i.status === "Good Perform").length;
+  const totalPerform = data.filter((i) => i.status === "Perform").length;
+  const totalUnder = data.filter((i) => i.status === "Under Perform").length;
 
   const worksheetData: (string | number)[][] = [
     ["PT ANDIMA TRANSPORTINDO"],
-    ["LAPORAN MATRIKS ANALISIS KESENJANGAN KOMPETENSI (GAP ANALYSIS)"],
+    ["LAPORAN MATRIKS ANALISIS KESENJANGAN KINERJA KPI (GAP ANALYSIS)"],
     [`Dicetak pada: ${getFormattedDate()} | Dokumen Internal Manajemen`],
     [],
     ["Ringkasan Eksekutif:"],
     [
-      "Total Matriks",
+      "Total Karyawan",
       data.length,
-      "Kompeten (Gap >= 0)",
-      totalKompeten,
-      "Gap Sedang (Gap = -1)",
-      totalSedang,
-      "Gap Signifikan (Gap <= -2)",
-      totalSignifikan,
+      "Good Perform (Gap > 0)",
+      totalGood,
+      "Perform (Gap = 0)",
+      totalPerform,
+      "Under Perform (Gap < 0)",
+      totalUnder,
     ],
     [],
     [
       "No",
+      "ID Karyawan",
       "Nama Karyawan",
-      "Posisi Target",
-      "Kompetensi",
-      "Kategori",
-      "Standar (Req)",
-      "Aktual (Cur)",
+      "Posisi Kompetensi",
+      "Departemen",
+      "Nilai KPI Posisi",
+      "Nilai KPI Harian",
       "Gap",
       "Status",
-      "Rekomendasi Tindak Lanjut",
     ],
   ];
 
   data.forEach((item, idx) => {
     worksheetData.push([
       idx + 1,
+      item.employee_id,
       item.employee_name,
       item.position_name,
-      item.competency_name,
-      item.category,
-      item.level_required,
-      item.level_current,
-      item.gap,
-      item.gap_status,
-      item.recommendation,
+      item.department,
+      item.kpi_position_score,
+      item.kpi_daily_score,
+      item.gap > 0 ? `+${item.gap}` : item.gap,
+      item.status,
     ]);
   });
 
@@ -131,19 +125,18 @@ export function exportGapToExcel(data: GapItem[], filenamePrefix = "Laporan_Gap_
 
   worksheet["!cols"] = [
     { wch: 6 },   // No
-    { wch: 22 },  // Karyawan
-    { wch: 28 },  // Posisi
-    { wch: 30 },  // Kompetensi
-    { wch: 16 },  // Kategori
-    { wch: 14 },  // Standar
-    { wch: 14 },  // Aktual
-    { wch: 8 },   // Gap
+    { wch: 14 },  // ID Karyawan
+    { wch: 24 },  // Nama Karyawan
+    { wch: 32 },  // Posisi Kompetensi
+    { wch: 28 },  // Departemen
+    { wch: 18 },  // Nilai KPI Posisi
+    { wch: 18 },  // Nilai KPI Harian
+    { wch: 10 },  // Gap
     { wch: 16 },  // Status
-    { wch: 45 },  // Rekomendasi
   ];
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Gap Analysis");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Gap KPI");
 
   XLSX.writeFile(workbook, `${filenamePrefix}_${getShortDate()}.xlsx`);
 }
@@ -151,10 +144,10 @@ export function exportGapToExcel(data: GapItem[], filenamePrefix = "Laporan_Gap_
 /**
  * 3. Export Gap Analysis as PDF (.pdf) directly
  */
-export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Kompetensi_Andima") {
-  const totalKompeten = data.filter((i) => i.gap >= 0).length;
-  const totalSedang = data.filter((i) => i.gap === -1).length;
-  const totalSignifikan = data.filter((i) => i.gap <= -2).length;
+export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_KPI_Andima") {
+  const totalGood = data.filter((i) => i.status === "Good Perform").length;
+  const totalPerform = data.filter((i) => i.status === "Perform").length;
+  const totalUnder = data.filter((i) => i.status === "Under Perform").length;
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -179,7 +172,7 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text("Human Resource & Capital Management System", 21, 22.5);
-  doc.text("Laporan Analisis Kesenjangan Kompetensi • Executive Owner Report", 21, 27);
+  doc.text("Laporan Analisis Kesenjangan KPI (Gap Analysis) • Executive Report", 21, 27);
 
   // Header Right
   doc.setFont("helvetica", "bold");
@@ -201,7 +194,7 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(18, 27, 46);
-  doc.text("Matriks Hasil Evaluasi & Gap Analysis Kompetensi Karyawan", 14, 40);
+  doc.text("Matriks Evaluasi Kesenjangan KPI Posisi vs Realisasi Harian Karyawan", 14, 40);
 
   // Summary Cards
   const cardY = 44;
@@ -209,10 +202,10 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
   const cardHeight = 13;
 
   const metrics = [
-    { label: "TOTAL MATRIKS", value: String(data.length), color: [18, 27, 46] },
-    { label: "KOMPETEN (GAP >= 0)", value: String(totalKompeten), color: [22, 131, 75] },
-    { label: "GAP SEDANG (GAP -1)", value: String(totalSedang), color: [183, 121, 31] },
-    { label: "GAP SIGNIFIKAN (<= -2)", value: String(totalSignifikan), color: [214, 69, 69] },
+    { label: "TOTAL KARYAWAN", value: String(data.length), color: [18, 27, 46] },
+    { label: "GOOD PERFORM (GAP > 0)", value: String(totalGood), color: [22, 131, 75] },
+    { label: "PERFORM (GAP = 0)", value: String(totalPerform), color: [6, 148, 148] },
+    { label: "UNDER PERFORM (GAP < 0)", value: String(totalUnder), color: [214, 69, 69] },
   ];
 
   metrics.forEach((m, idx) => {
@@ -236,13 +229,11 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
     idx + 1,
     item.employee_name,
     item.position_name,
-    item.competency_name,
-    item.category,
-    item.level_required,
-    item.level_current,
-    item.gap >= 0 ? `+${item.gap}` : String(item.gap),
-    item.gap_status,
-    item.recommendation,
+    item.department,
+    item.kpi_position_score,
+    item.kpi_daily_score,
+    item.gap > 0 ? `+${item.gap}` : String(item.gap),
+    item.status,
   ]);
 
   autoTable(doc, {
@@ -251,14 +242,12 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
       [
         "No",
         "Nama Karyawan",
-        "Posisi Target",
-        "Kompetensi",
-        "Kategori",
-        "Req",
-        "Cur",
-        "Gap",
+        "Posisi Kompetensi",
+        "Departemen",
+        "Nilai KPI Posisi",
+        "Nilai KPI Harian",
+        "Gap (Δ)",
         "Status",
-        "Rekomendasi",
       ],
     ],
     body: tableRows,
@@ -280,23 +269,21 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
     },
     columnStyles: {
       0: { cellWidth: 9, halign: "center" },
-      1: { cellWidth: 32, fontStyle: "bold" },
-      2: { cellWidth: 35 },
-      3: { cellWidth: 38 },
-      4: { cellWidth: 20 },
-      5: { cellWidth: 12, halign: "center" },
-      6: { cellWidth: 12, halign: "center" },
-      7: { cellWidth: 12, halign: "center", fontStyle: "bold" },
-      8: { cellWidth: 24, halign: "center" },
-      9: { cellWidth: "auto" },
+      1: { cellWidth: 40, fontStyle: "bold" },
+      2: { cellWidth: 50 },
+      3: { cellWidth: 45 },
+      4: { cellWidth: 30, halign: "center", fontStyle: "bold" },
+      5: { cellWidth: 30, halign: "center", fontStyle: "bold" },
+      6: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      7: { cellWidth: 35, halign: "center" },
     },
     didParseCell: (dataCell) => {
-      if (dataCell.section === "body" && dataCell.column.index === 7) {
+      if (dataCell.section === "body" && dataCell.column.index === 6) {
         const rawVal = Number(dataCell.cell.raw);
-        if (rawVal >= 0) {
+        if (rawVal > 0) {
           dataCell.cell.styles.textColor = [22, 131, 75];
-        } else if (rawVal === -1) {
-          dataCell.cell.styles.textColor = [183, 121, 31];
+        } else if (rawVal === 0) {
+          dataCell.cell.styles.textColor = [6, 148, 148];
         } else {
           dataCell.cell.styles.textColor = [214, 69, 69];
         }
@@ -324,7 +311,7 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
   doc.line(20, sigY + 16, 20 + sigBoxWidth, sigY + 16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(18, 27, 46);
-  doc.text("Assessor / HC Department", 20, sigY + 20);
+  doc.text("HC / Performance Assessor", 20, sigY + 20);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
@@ -352,3 +339,4 @@ export function exportGapToPDF(data: GapItem[], filenamePrefix = "Laporan_Gap_Ko
 
   doc.save(`${filenamePrefix}_${getShortDate()}.pdf`);
 }
+

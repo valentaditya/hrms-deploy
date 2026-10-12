@@ -51,6 +51,15 @@ export interface PositionKpiGroup {
 function getKpiName(k: KpiRow) { return k.kpi_name || k.nama_kpi || ""; }
 function getKpiTarget(k: KpiRow) { return k.kpi_target || k.target_kpi || ""; }
 function getKpiWeight(k: KpiRow) { return Number(k.kpi_weight ?? k.bobot_kpi ?? 0); }
+function getTotalKpiTarget(kpis: KpiRow[]) {
+  const targets = kpis.map((kpi) => getKpiTarget(kpi).trim());
+  if (targets.length === 0 || targets.some((target) => !target)) return null;
+
+  const numericTargets = targets.map(Number);
+  if (numericTargets.some((target) => !Number.isFinite(target))) return null;
+
+  return numericTargets.reduce((total, target) => total + target, 0);
+}
 
 function KpiContent() {
   const { viewRole } = usePosisiKompetensiRole();
@@ -406,6 +415,16 @@ function KpiContent() {
                   </div>
                 </div>
 
+                <div className="mb-4 rounded-lg border border-[#becabd]/35 bg-[#f7f8ff] px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">
+                    Total Target KPI
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-[#1e3765]">
+                    {getTotalKpiTarget(item.kpis)?.toLocaleString("id-ID") ??
+                      (item.kpis.length === 0 ? "Belum ada target KPI" : "Target tidak dapat dijumlahkan")}
+                  </p>
+                </div>
+
                 {/* KPI List */}
                 <div className="space-y-2.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-[#4d5f81]">
@@ -528,6 +547,7 @@ function MultiStepKpiModal({
       { id: `k-${Date.now()}-2`, kpi_name: "", kpi_target: "", kpi_weight: 50 },
     ]
   );
+  const [weightInputs, setWeightInputs] = useState<Record<string, string>>({});
 
   const totalWeight = useMemo(() => kpis.reduce((s, k) => s + getKpiWeight(k), 0), [kpis]);
   const hasCompleteKpiDetails = kpis.length > 0 && kpis.every((k) => getKpiName(k).trim() && getKpiTarget(k).trim());
@@ -552,10 +572,44 @@ function MultiStepKpiModal({
     else setKpis([{ id: `k-${Date.now()}`, kpi_name: "", kpi_target: "", kpi_weight: 100 }]);
   };
 
-  const addRow = () => setKpis([...kpis, { id: `k-${Date.now()}`, kpi_name: "", kpi_target: "", kpi_weight: 10 }]);
+  const addRow = () => setKpis((prev) => {
+    const currentTotal = prev.reduce((sum, kpi) => sum + getKpiWeight(kpi), 0);
+    const remainingWeight = Math.max(0, 100 - currentTotal);
+    let newWeight = remainingWeight;
+    let nextKpis = prev;
+
+    if (newWeight === 0) {
+      const largestKpi = prev.reduce((largest, kpi) =>
+        getKpiWeight(kpi) > getKpiWeight(largest) ? kpi : largest
+      );
+      newWeight = Math.min(10, Math.max(0, getKpiWeight(largestKpi) - 1));
+      if (newWeight === 0) return prev;
+      nextKpis = prev.map((kpi) => kpi.id === largestKpi.id
+        ? { ...kpi, kpi_weight: getKpiWeight(kpi) - newWeight }
+        : kpi
+      );
+    }
+
+    return [...nextKpis, { id: `k-${Date.now()}`, kpi_name: "", kpi_target: "", kpi_weight: newWeight }];
+  });
   const removeRow = (id: string) => { if (kpis.length > 1) setKpis(kpis.filter((k) => k.id !== id)); };
   const updateRow = (id: string, field: string, value: string | number) => {
-    setKpis((prev) => prev.map((k) => k.id === id ? { ...k, [field]: value } : k));
+    setKpis((prev) => {
+      if (field !== "kpi_weight") {
+        return prev.map((k) => k.id === id ? { ...k, [field]: value } : k);
+      }
+
+      const otherWeights = prev
+        .filter((k) => k.id !== id)
+        .reduce((sum, kpi) => sum + getKpiWeight(kpi), 0);
+      const maxWeight = Math.max(0, 100 - otherWeights);
+      const requestedWeight = Number(value);
+      const adjustedWeight = Number.isFinite(requestedWeight) && maxWeight >= 1
+        ? Math.min(Math.max(requestedWeight, 1), maxWeight)
+        : 0;
+
+      return prev.map((k) => k.id === id ? { ...k, kpi_weight: adjustedWeight } : k);
+    });
   };
 
   const handleSave = async () => {
@@ -671,13 +725,25 @@ function MultiStepKpiModal({
                       <input
                         type="number"
                         min={1}
-                        max={100}
-                        value={getKpiWeight(row)}
-                        onChange={(e) => updateRow(row.id!, "kpi_weight", Number(e.target.value))}
+                        max={Math.max(0, 100 - (totalWeight - getKpiWeight(row)))}
+                        step={1}
+                        value={weightInputs[row.id!] ?? getKpiWeight(row)}
+                        onChange={(e) => {
+                          const value = e.currentTarget.value;
+                          const normalizedValue = value.replace(/^0+(?=\d)/, "");
+                          setWeightInputs((prev) => ({ ...prev, [row.id!]: normalizedValue }));
+                          if (normalizedValue !== "") updateRow(row.id!, "kpi_weight", Number(normalizedValue));
+                        }}
                         onBlur={(e) => {
-                          if (Number(e.currentTarget.value) > 100) {
-                            updateRow(row.id!, "kpi_weight", 100);
+                          const value = e.currentTarget.value;
+                          if (value !== "") {
+                            updateRow(row.id!, "kpi_weight", Number(value.replace(/^0+(?=\d)/, "")));
                           }
+                          setWeightInputs((prev) => {
+                            const next = { ...prev };
+                            delete next[row.id!];
+                            return next;
+                          });
                         }}
                         className="w-full rounded border border-[#becabd]/60 bg-white px-2 py-1.5 pr-5 text-right font-bold outline-none focus:border-[#069494]"
                       />
