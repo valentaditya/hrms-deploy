@@ -90,6 +90,19 @@ export async function POST(request: Request) {
       });
     }
 
+    const seenKpis = new Set<string>();
+    for (const [index, kpi] of kpiPayload.entries()) {
+      const normalizedName = kpi.kpi_name.toLocaleLowerCase('id-ID');
+      const duplicateKey = `${kpi.position_id}\u0000${normalizedName}`;
+      if (seenKpis.has(duplicateKey)) {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: `Nama KPI pada baris ${index + 1} duplikat untuk posisi ini` }
+        }, { status: 400 });
+      }
+      seenKpis.add(duplicateKey);
+    }
+
     const totalWeight = kpiPayload.reduce((sum, kpi) => sum + kpi.kpi_weight, 0);
     if (body.validate_total_weight !== false && totalWeight !== 100) {
       return NextResponse.json({
@@ -109,6 +122,12 @@ export async function POST(request: Request) {
           success: false,
           error: { code: 'VALIDATION_ERROR', message: 'Nama KPI tidak memenuhi aturan database. Periksa kembali nama KPI yang diisi.' }
         }, { status: 400 });
+      }
+      if (error.code === '23505') {
+        return NextResponse.json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Nama KPI tersebut sudah terdaftar untuk posisi ini. Gunakan nama KPI yang berbeda.' }
+        }, { status: 409 });
       }
       throw error;
     }

@@ -50,6 +50,17 @@ export interface PositionKpiGroup {
 
 function getKpiName(k: KpiRow) { return k.kpi_name || k.nama_kpi || ""; }
 function getKpiTarget(k: KpiRow) { return k.kpi_target || k.target_kpi || ""; }
+function isWholeNumberTarget(target: string) { return /^\d+$/.test(target.trim()); }
+function findDuplicateKpiNameIndex(kpis: KpiRow[]) {
+  const names = new Set<string>();
+  return kpis.findIndex((kpi) => {
+    const name = getKpiName(kpi).trim().toLocaleLowerCase("id-ID");
+    if (!name) return false;
+    if (names.has(name)) return true;
+    names.add(name);
+    return false;
+  });
+}
 function getKpiWeight(k: KpiRow) { return Number(k.kpi_weight ?? k.bobot_kpi ?? 0); }
 function getTotalKpiTarget(kpis: KpiRow[]) {
   const targets = kpis.map((kpi) => getKpiTarget(kpi).trim());
@@ -141,8 +152,14 @@ function KpiContent() {
   }, [kpiGroups, searchQuery, selectedDepartment]);
 
   const handleSaveKpi = async (posId: string, kpis: KpiRow[]) => {
+    const duplicateRowIndex = findDuplicateKpiNameIndex(kpis);
+    if (duplicateRowIndex !== -1) {
+      showNotification(`Nama KPI pada baris ${duplicateRowIndex + 1} sudah digunakan. Gunakan nama yang berbeda.`);
+      return;
+    }
+
     const invalidRow = kpis.findIndex((kpi) =>
-      !getKpiName(kpi).trim() || !getKpiTarget(kpi).trim() ||
+      !getKpiName(kpi).trim() || !isWholeNumberTarget(getKpiTarget(kpi)) ||
       !Number.isFinite(getKpiWeight(kpi)) || getKpiWeight(kpi) <= 0 || getKpiWeight(kpi) > 100
     );
     if (invalidRow !== -1) {
@@ -550,9 +567,11 @@ function MultiStepKpiModal({
   const [weightInputs, setWeightInputs] = useState<Record<string, string>>({});
 
   const totalWeight = useMemo(() => kpis.reduce((s, k) => s + getKpiWeight(k), 0), [kpis]);
-  const hasCompleteKpiDetails = kpis.length > 0 && kpis.every((k) => getKpiName(k).trim() && getKpiTarget(k).trim());
+  const hasCompleteKpiDetails = kpis.length > 0 && kpis.every((k) => getKpiName(k).trim() && isWholeNumberTarget(getKpiTarget(k)));
+  const duplicateKpiRowIndex = findDuplicateKpiNameIndex(kpis);
+  const hasUniqueKpiNames = duplicateKpiRowIndex === -1;
   const hasValidWeights = totalWeight === 100 && kpis.every((k) => getKpiWeight(k) > 0);
-  const isValid = hasCompleteKpiDetails && hasValidWeights;
+  const isValid = hasCompleteKpiDetails && hasUniqueKpiNames && hasValidWeights;
 
   // Auto-save draft to localStorage every 30s
   useEffect(() => {
@@ -716,9 +735,16 @@ function MultiStepKpiModal({
                     />
                     <input
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={getKpiTarget(row)}
-                      onChange={(e) => updateRow(row.id!, "kpi_target", e.target.value)}
-                      placeholder="Target (mis: ≥ 98%)"
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        if (value === "" || /^\d+$/.test(value)) {
+                          updateRow(row.id!, "kpi_target", value);
+                        }
+                      }}
+                      placeholder="Target KPI... cth 85"
                       className="w-full rounded border border-[#becabd]/60 bg-white px-2.5 py-1.5 outline-none focus:border-[#069494]"
                     />
                     <div className="relative">
@@ -762,8 +788,8 @@ function MultiStepKpiModal({
 
               {/* Weight Validation */}
               <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                isValid ? "bg-[#eaf7f0] border-[#bbf0d2] text-[#16834b]"
-                : totalWeight > 100 ? "bg-[#fff1f2] border-[#fecaca] text-[#d64545]"
+                duplicateKpiRowIndex !== -1 || totalWeight > 100 ? "bg-[#fff1f2] border-[#fecaca] text-[#d64545]"
+                : isValid ? "bg-[#eaf7f0] border-[#bbf0d2] text-[#16834b]"
                 : "bg-[#fef9c3] border-[#fde68a] text-[#b7791f]"
               }`}>
                 <div className="flex items-center gap-2">
@@ -771,7 +797,8 @@ function MultiStepKpiModal({
                   <div>
                     <p className="font-bold">Total Bobot Saat Ini: {totalWeight}%</p>
                     <p className="text-[11px]">
-                      {!hasCompleteKpiDetails ? "Isi nama KPI dan target pada setiap baris untuk mengaktifkan tombol simpan."
+                      {duplicateKpiRowIndex !== -1 ? `Nama KPI pada baris ${duplicateKpiRowIndex + 1} duplikat. Gunakan nama yang berbeda.`
+                        : !hasCompleteKpiDetails ? "Isi nama KPI dan target angka bulat pada setiap baris untuk mengaktifkan tombol simpan."
                         : isValid ? "Valid! Data KPI lengkap dan total bobot sudah pas 100%."
                         : totalWeight > 100 ? `Kelebihan ${totalWeight - 100}%. Kurangi bobot KPI.`
                         : totalWeight < 100 ? `Kurang ${100 - totalWeight}%. Tambahkan bobot KPI hingga 100%.`
@@ -790,7 +817,7 @@ function MultiStepKpiModal({
                   <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 font-bold text-[#4d5f81] hover:bg-[#f1f3ff]">Batal</button>
                   <button
                     type="button"
-                    disabled={(!isValid && !kpis.some((kpi) => getKpiWeight(kpi) > 100)) || isSaving}
+                    disabled={(!hasUniqueKpiNames || (!isValid && !kpis.some((kpi) => getKpiWeight(kpi) > 100))) || isSaving}
                     onClick={handleSave}
                     className="inline-flex items-center gap-2 rounded-lg bg-[#16834b] px-4 py-2 font-bold text-white hover:bg-[#006838] disabled:cursor-not-allowed disabled:opacity-50"
                   >
