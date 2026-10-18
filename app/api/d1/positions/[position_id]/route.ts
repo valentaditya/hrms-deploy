@@ -93,7 +93,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ posi
     const updatePayload: Record<string, string> = {};
 
     const namaPosisi = body.nama_posisi ?? body.name ?? body.title;
-    const departemen = body.departemen ?? body.department;
+    const departmentId = body.id_departments;
     const deskripsi = body.deskripsi_posisi ?? body.deskripsi ?? body.description;
     const statusPosisi = body.status_posisi ?? body.status;
     const lokasi = body.lokasi ?? body.location ?? body.site;
@@ -108,14 +108,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ posi
       }
       updatePayload.nama_posisi = namaPosisi.trim();
     }
-    if (departemen !== undefined) {
-      if (typeof departemen !== 'string' || !departemen.trim()) {
+    if (departmentId !== undefined) {
+      if (typeof departmentId !== 'string' || !departmentId.trim()) {
         return NextResponse.json({
           success: false,
           error: { code: 'VALIDATION_ERROR', message: 'Departemen wajib diisi' }
         }, { status: 400 });
       }
-      updatePayload.departemen = departemen.trim();
+      updatePayload.id_departments = departmentId.trim();
     }
     if (deskripsi !== undefined) {
       if (typeof deskripsi !== 'string' || deskripsi.length > 500) {

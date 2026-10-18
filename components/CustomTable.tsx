@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Pagination from "./Pagination";
+import type { PageSize } from "./Pagination";
 
 export interface Column<T> {
   key: string;
@@ -22,7 +23,8 @@ export interface CustomTableProps<T> {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   totalItems?: number;
-  itemsPerPage?: number;
+  itemsPerPage?: PageSize;
+  onItemsPerPageChange?: (pageSize: PageSize) => void;
   showPagination?: boolean;
   className?: string;
 }
@@ -43,13 +45,16 @@ export function CustomTable<T extends { id?: string | number }>({
   totalPages,
   onPageChange,
   totalItems,
-  itemsPerPage = 10,
+  itemsPerPage,
+  onItemsPerPageChange,
   showPagination = true,
   className = "",
 }: CustomTableProps<T>) {
   const [internalSelected, setInternalSelected] = useState<(string | number)[]>(selectedIds);
+  const [internalPageSize, setInternalPageSize] = useState<PageSize>(itemsPerPage ?? 10);
   const resolvedTotalItems = totalItems ?? data.length;
-  const pageSize = Math.max(1, itemsPerPage);
+  const resolvedPageSize = itemsPerPage ?? internalPageSize;
+  const pageSize = resolvedPageSize === "all" ? Math.max(1, resolvedTotalItems) : Math.max(1, resolvedPageSize);
   const resolvedTotalPages = totalPages ?? Math.max(1, Math.ceil(resolvedTotalItems / pageSize));
   const resolvedCurrentPage = Math.min(Math.max(1, currentPage), resolvedTotalPages);
   const pageStart = (resolvedCurrentPage - 1) * pageSize;
@@ -76,6 +81,11 @@ export function CustomTable<T extends { id?: string | number }>({
   };
 
   const isAllSelected = pageIds.length > 0 && pageIds.every((id) => currentSelected.includes(id));
+
+  const handleItemsPerPageChange = (nextPageSize: PageSize) => {
+    if (itemsPerPage === undefined) setInternalPageSize(nextPageSize);
+    onItemsPerPageChange?.(nextPageSize);
+  };
 
   return (
     <div className={`w-full bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden font-sans ${className}`}>
@@ -169,6 +179,8 @@ export function CustomTable<T extends { id?: string | number }>({
             currentPage={resolvedCurrentPage}
             totalPages={resolvedTotalPages}
             onPageChange={onPageChange}
+            pageSize={resolvedPageSize}
+            onPageSizeChange={handleItemsPerPageChange}
           />
         )}
       </div>

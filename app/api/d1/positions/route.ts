@@ -7,17 +7,19 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 100); 
-    const department = searchParams.get('department') || searchParams.get('departemen');
+    const departmentId = searchParams.get('id_departments') || searchParams.get('department');
     const status = searchParams.get('status') || searchParams.get('status_posisi');
     const search = searchParams.get('search');
     
     const start = (page - 1) * limit;
     const end = start + limit - 1;
 
-    let query = supabase.from('d1_job_positions').select('*', { count: 'exact' });
+    let query = supabase
+      .from('d1_job_positions')
+      .select('*, d1_departments ( id, nama_departemen )', { count: 'exact' });
 
-    if (department && department !== 'ALL') {
-      query = query.or(`departemen.eq.${department},department.eq.${department}`);
+    if (departmentId && departmentId !== 'ALL') {
+      query = query.eq('id_departments', departmentId);
     }
     if (status && status !== 'ALL') {
       query = query.or(`status_posisi.eq.${status},status.eq.${status}`);
@@ -30,13 +32,18 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
+    const positions = (data || []).map((position) => ({
+      ...position,
+      departemen: (position.d1_departments as { nama_departemen?: string } | null)?.nama_departemen || '',
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
         total: count || 0,
         page: page,
         limit: limit,
-        positions: data || []
+        positions
       }
     });
   } catch (err: any) {
@@ -53,13 +60,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     
     const namaPosisi = body.nama_posisi || body.name || body.title;
-    const departemen = body.departemen || body.department;
+    const departmentId = body.id_departments;
     const deskripsi = body.deskripsi_posisi || body.deskripsi || body.description;
     const statusPosisi = body.status_posisi || body.status || 'Active';
     const lokasi = body.lokasi || body.location || body.site || 'HQ - Menara MTH';
     const jobCode = body.job_code || body.position_code || `JP-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    if (!namaPosisi || !departemen) {
+    if (!namaPosisi || !departmentId) {
       return NextResponse.json({
         success: false,
         error: {
@@ -72,7 +79,7 @@ export async function POST(request: Request) {
 
     const payload: Record<string, any> = {
       nama_posisi: namaPosisi,
-      departemen: departemen,
+      id_departments: departmentId,
       status_posisi: statusPosisi,
       job_code: jobCode,
       location: lokasi,

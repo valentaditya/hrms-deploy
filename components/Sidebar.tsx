@@ -125,6 +125,7 @@ export default function Sidebar({ userName, userRole, userInitials, onSignOut, i
   ].includes(pathname);
   const isD1Route = [
     "/manajemen-posisi-dan-kompetensi/posisi",
+    "/manajemen-posisi-dan-kompetensi/departemen",
     "/manajemen-posisi-dan-kompetensi/kpi",
     "/manajemen-posisi-dan-kompetensi/gap-analysis",
     "/manajemen-posisi-dan-kompetensi/laporan",
@@ -249,6 +250,7 @@ export default function Sidebar({ userName, userRole, userInitials, onSignOut, i
                       <HrmsLink label="Feedback & Reward Management" href="/feedback-reward" />
                       <HrmsLink label="Employee Report & Ticket" href="/employee-report-ticket" /> */}
                       <HrmsLink label="Daftar Posisi Pekerjaan" href="/manajemen-posisi-dan-kompetensi/posisi"  />
+                      <HrmsLink label="Tambah Departemen" href="/manajemen-posisi-dan-kompetensi/departemen" />
                       <HrmsLink label="Definisi KPI" href="/manajemen-posisi-dan-kompetensi/kpi"  />
                       <HrmsLink label="Analisis Kesenjangan (Gap Analysis)" href="/manajemen-posisi-dan-kompetensi/gap-analysis" />
                       <HrmsLink label="Laporan & Ekspor" href="/manajemen-posisi-dan-kompetensi/laporan" />

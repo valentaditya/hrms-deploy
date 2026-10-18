@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/Sidebar";
-import Pagination from "@/components/Pagination";
+import Pagination, { type PageSize } from "@/components/Pagination";
 
 type TicketStatus = "SUBMITTED" | "IN_REVIEW" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
 type ViewRole = "manager" | "employee";
@@ -181,6 +181,7 @@ export default function EmployeeReportTicketPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | TicketStatus>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<PageSize>(10);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [followUp, setFollowUp] = useState("");
@@ -202,9 +203,10 @@ export default function EmployeeReportTicketPage() {
     setCurrentPage(1);
   }, [query, statusFilter, viewRole]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / 10));
+  const pageSize = itemsPerPage === "all" ? Math.max(1, filteredTickets.length) : itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / pageSize));
   const page = Math.min(currentPage, totalPages);
-  const visibleTickets = filteredTickets.slice((page - 1) * 10, page * 10);
+  const visibleTickets = filteredTickets.slice((page - 1) * pageSize, page * pageSize);
   const selectedTicket = filteredTickets.find((ticket) => ticket.id === selectedId);
 
   function showNotice(message: string) {
@@ -289,8 +291,8 @@ export default function EmployeeReportTicketPage() {
               <div className="flex flex-col gap-3 border-b border-[#becabd]/35 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-2"><Filter size={15} className="text-[#4d5f81]" /><FilterButton active={statusFilter === "ALL"} onClick={() => setStatusFilter("ALL")}>Semua <span className="rounded bg-[#1e3765] px-1.5 py-0.5 text-[10px] text-white">{accessibleTickets.length}</span></FilterButton>{(["SUBMITTED", "IN_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED"] as TicketStatus[]).map((status) => <FilterButton key={status} active={statusFilter === status} onClick={() => setStatusFilter(status)}>{statusMeta[status].label}</FilterButton>)}</div><label className="flex items-center gap-2 rounded-lg border border-[#d9e2fc] bg-[#f1f3ff] px-3 py-2 md:hidden"><Search size={14} className="text-[#4d5f81]/70" /><input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent text-xs outline-none" placeholder="Cari ticket..." /></label></div>
               <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left"><thead className="border-b border-[#becabd]/35 bg-[#f7f8ff] text-[10px] font-bold uppercase tracking-[0.08em] text-[#4d5f81]"><tr><th className="w-10 px-4 py-3"><input aria-label="Pilih semua ticket" type="checkbox" className="size-4 accent-[#16834b]" /></th><th className="px-3 py-3">Employee</th><th className="px-3 py-3">Ticket</th><th className="px-3 py-3">Submitted</th><th className="px-3 py-3">Status</th><th className="w-12 px-3 py-3">Action</th></tr></thead><tbody className="divide-y divide-[#becabd]/25">{visibleTickets.map((ticket) => <tr key={ticket.id} onClick={() => setSelectedId(ticket.id)} className={`cursor-pointer transition hover:bg-[#f7f8ff] ${selectedTicket?.id === ticket.id ? "bg-[#eaf7f0]" : "bg-white"}`}><td className="px-4 py-3.5"><input onClick={(event) => event.stopPropagation()} aria-label={`Pilih ${ticket.id}`} type="checkbox" className="size-4 accent-[#16834b]" /></td><td className="px-3 py-3.5"><div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-full bg-[#b0c6d4] text-[10px] font-bold text-[#1e3765]">{ticket.employeeName.split(" ").map((name) => name[0]).join("").slice(0, 2)}</span><div><p className="text-xs font-bold">{ticket.employeeName}</p><p className="text-[10px] text-[#4d5f81]">{ticket.employeeId}</p></div></div></td><td className="px-3 py-3.5"><p className="text-xs font-semibold">{ticket.title}</p><p className="mt-0.5 text-[10px] text-[#4d5f81]">{ticket.id} · {ticket.category}</p></td><td className="px-3 py-3.5 text-xs text-[#3f4940]">{formatDate(ticket.createdAt)}</td><td className="px-3 py-3.5"><StatusBadge status={ticket.status} /></td><td className="px-3 py-3.5"><button onClick={(event) => { event.stopPropagation(); setSelectedId(ticket.id); }} className="rounded p-1.5 text-[#4d5f81] hover:bg-[#d9e2fc]/55" aria-label={`Lihat ${ticket.id}`}><MoreHorizontal size={17} /></button></td></tr>)}{visibleTickets.length === 0 && <tr><td colSpan={6} className="px-6 py-14 text-center text-sm text-[#4d5f81]">Tidak ada ticket yang sesuai dengan filter.</td></tr>}</tbody></table></div>
               <div className="flex flex-col gap-2 border-t border-[#becabd]/35 px-4 py-3 text-xs text-[#4d5f81] sm:flex-row sm:items-center sm:justify-between">
-                <span>Menampilkan <b className="text-[#121b2e]">{filteredTickets.length ? (page - 1) * 10 + 1 : 0}–{Math.min(page * 10, filteredTickets.length)}</b> dari <b className="text-[#121b2e]">{filteredTickets.length}</b> ticket</span>
-                {filteredTickets.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} />}
+                <span>Menampilkan <b className="text-[#121b2e]">{filteredTickets.length ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, filteredTickets.length)}</b> dari <b className="text-[#121b2e]">{filteredTickets.length}</b> ticket</span>
+                {filteredTickets.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} pageSize={itemsPerPage} onPageSizeChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }} />}
               </div>
             </section>
 

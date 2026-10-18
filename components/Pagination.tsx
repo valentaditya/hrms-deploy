@@ -6,13 +6,19 @@ export interface PaginationProps {
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  pageSize?: PageSize;
+  onPageSizeChange?: (pageSize: PageSize) => void;
   className?: string;
 }
+
+export type PageSize = number | "all";
 
 export const Pagination: React.FC<PaginationProps> = ({
   currentPage = 1,
   totalPages = 24,
   onPageChange,
+  pageSize = 10,
+  onPageSizeChange,
   className = "",
 }) => {
   const handlePageClick = (page: number) => {
@@ -21,31 +27,47 @@ export const Pagination: React.FC<PaginationProps> = ({
     }
   };
 
+  const handlePageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextPageSize: PageSize = event.target.value === "all" ? "all" : Number(event.target.value);
+    onPageSizeChange?.(nextPageSize);
+    onPageChange?.(1);
+  };
+
   return (
-    <nav
-      aria-label="Pagination Navigation"
-      className={`inline-flex items-center gap-2 font-sans select-none ${className}`}
-    >
+    <div className={`flex flex-wrap items-center gap-3 ${className}`}>
+      <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
+        <span className="sr-only">Jumlah data per halaman</span>
+        <select
+          aria-label="Jumlah data per halaman"
+          value={pageSize}
+          onChange={handlePageSizeChange}
+          className="h-9 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-slate-400"
+        >
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+          <option value="all">Semua</option>
+        </select>
+        per halaman
+      </label>
+      <nav
+        aria-label="Pagination Navigation"
+        className="inline-flex items-center gap-2 font-sans select-none"
+      >
       {/* Previous Button */}
       <button
         type="button"
         onClick={() => handlePageClick(currentPage - 1)}
         disabled={currentPage <= 1}
-        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+        className={`h-10 rounded-lg border-2 px-3 text-sm font-medium transition-colors ${
           currentPage <= 1
-            ? "border border-slate-100 text-slate-300 bg-white cursor-not-allowed"
-            : "border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer shadow-xs"
+            ? "border-slate-100 bg-white text-slate-300 cursor-not-allowed"
+            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer"
         }`}
         aria-label="Previous Page"
       >
-        <svg
-          className="w-4 h-4 stroke-[2.2]"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
+        Previous
       </button>
 
       {/* Page Numbers */}
@@ -57,10 +79,10 @@ export const Pagination: React.FC<PaginationProps> = ({
                 key={page}
                 type="button"
                 onClick={() => handlePageClick(page)}
-                className={`w-10 h-10 rounded-lg text-sm font-semibold flex items-center justify-center transition-all ${
+                className={`h-10 w-10 rounded-lg border-2 text-sm font-semibold flex items-center justify-center transition-colors ${
                   currentPage === page
-                    ? "bg-[#0F172A] text-white shadow-xs"
-                    : "text-slate-700 hover:bg-slate-100 cursor-pointer"
+                    ? "border-[#4b6df0] bg-[#4b6df0] text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer"
                 }`}
               >
                 {page}
@@ -82,7 +104,7 @@ export const Pagination: React.FC<PaginationProps> = ({
               return (
                 <span
                   key={`ellipsis-${idx}`}
-                  className="w-8 h-10 flex items-center justify-center text-slate-400 font-bold tracking-wider text-sm select-none"
+                  className="h-10 w-8 flex items-center justify-center text-slate-400 font-bold text-sm select-none"
                 >
                   ...
                 </span>
@@ -94,10 +116,10 @@ export const Pagination: React.FC<PaginationProps> = ({
                 key={pageNum}
                 type="button"
                 onClick={() => handlePageClick(pageNum)}
-                className={`w-10 h-10 rounded-lg text-sm font-semibold flex items-center justify-center transition-all ${
+                className={`h-10 w-10 rounded-lg border-2 text-sm font-semibold flex items-center justify-center transition-colors ${
                   currentPage === pageNum
-                    ? "bg-[#0F172A] text-white shadow-xs"
-                    : "text-slate-700 hover:bg-slate-100 cursor-pointer"
+                    ? "border-[#4b6df0] bg-[#4b6df0] text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer"
                 }`}
               >
                 {pageNum}
@@ -112,23 +134,17 @@ export const Pagination: React.FC<PaginationProps> = ({
         type="button"
         onClick={() => handlePageClick(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+        className={`h-10 rounded-lg border-2 px-3 text-sm font-medium transition-colors ${
           currentPage >= totalPages
-            ? "border border-slate-100 text-slate-300 bg-white cursor-not-allowed"
-            : "border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer shadow-xs"
+            ? "border-slate-100 bg-white text-slate-300 cursor-not-allowed"
+            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer"
         }`}
         aria-label="Next Page"
       >
-        <svg
-          className="w-4 h-4 stroke-[2.2]"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
+        Next
       </button>
-    </nav>
+      </nav>
+    </div>
   );
 };
 

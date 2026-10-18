@@ -28,6 +28,7 @@ export const usePosisiKompetensiRole = () => useContext(PosisiKompetensiContext)
 
 const PAGE_TITLES: Record<string, string> = {
   "/manajemen-posisi-dan-kompetensi/posisi": "Daftar Posisi Pekerjaan",
+  "/manajemen-posisi-dan-kompetensi/departemen": "Tambah Departemen",
   "/manajemen-posisi-dan-kompetensi/kpi": "Definisi KPI",
   "/manajemen-posisi-dan-kompetensi/gap-analysis": "Analisis Kesenjangan (Gap)",
   "/manajemen-posisi-dan-kompetensi/laporan": "Laporan & Ekspor",

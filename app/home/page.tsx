@@ -174,7 +174,6 @@ export default function HomePage() {
           currentPage={currentPage}
           onPageChange={(page) => setCurrentPage(page)}
           totalItems={sampleEmployees.length}
-          itemsPerPage={10}
         />
       </div>
     </div>

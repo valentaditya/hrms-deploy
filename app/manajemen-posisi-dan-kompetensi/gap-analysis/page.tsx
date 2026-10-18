@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Pagination from "@/components/Pagination";
+import Pagination, { type PageSize } from "@/components/Pagination";
 import PosisiKompetensiShell from "@/components/posisi-kompetensi/PosisiKompetensiShell";
 import {
   AlertTriangle,
@@ -163,6 +163,7 @@ function GapAnalysisContent() {
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<PageSize>(10);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [toast, setToast] = useState<string>("");
 
@@ -410,9 +411,10 @@ function GapAnalysisContent() {
     setCurrentPage(1);
   }, [search, selectedDept, selectedStatus]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / 10));
+  const pageSize = itemsPerPage === "all" ? Math.max(1, filteredItems.length) : itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const page = Math.min(currentPage, totalPages);
-  const pageItems = filteredItems.slice((page - 1) * 10, page * 10);
+  const pageItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
   // Summary Metrics
   const totalEmployees = filteredItems.length;
@@ -664,8 +666,8 @@ function GapAnalysisContent() {
             <span>
               Menampilkan{" "}
               <b className="text-[#121b2e]">
-                {filteredItems.length ? (page - 1) * 10 + 1 : 0}–
-                {Math.min(page * 10, filteredItems.length)}
+                {filteredItems.length ? (page - 1) * pageSize + 1 : 0}–
+                {Math.min(page * pageSize, filteredItems.length)}
               </b>{" "}
               dari <b className="text-[#121b2e]">{filteredItems.length}</b> data
             </span>
@@ -674,6 +676,8 @@ function GapAnalysisContent() {
                 currentPage={page}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
+                pageSize={itemsPerPage}
+                onPageSizeChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
               />
             )}
           </div>
@@ -710,6 +714,15 @@ function KpiDetailModal({
   onClose: () => void;
 }) {
   const [indicators, setIndicators] = useState<KpiIndicatorItem[]>(item.indicators);
+  const [indicatorPage, setIndicatorPage] = useState(1);
+  const [indicatorPageSize, setIndicatorPageSize] = useState<PageSize>(10);
+  const indicatorPageLength = indicatorPageSize === "all" ? Math.max(1, indicators.length) : indicatorPageSize;
+  const indicatorTotalPages = Math.max(1, Math.ceil(indicators.length / indicatorPageLength));
+  const resolvedIndicatorPage = Math.min(indicatorPage, indicatorTotalPages);
+  const visibleIndicators = indicators.slice(
+    (resolvedIndicatorPage - 1) * indicatorPageLength,
+    resolvedIndicatorPage * indicatorPageLength
+  );
 
   // Compute live totals if simulated
   const totalTarget = useMemo(() => {
@@ -828,10 +841,10 @@ function KpiDetailModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#becabd]/25">
-                    {indicators.map((ind, idx) => (
+                    {visibleIndicators.map((ind, idx) => (
                       <tr key={ind.id} className="transition hover:bg-[#f8faff]">
                         <td className="px-3.5 py-3 text-center font-bold text-[#4d5f81]">
-                          {idx + 1}
+                          {(resolvedIndicatorPage - 1) * indicatorPageLength + idx + 1}
                         </td>
                         <td className="px-3.5 py-3">
                           <p className="font-bold text-[#121b2e]">{ind.kpi_name}</p>
@@ -891,6 +904,18 @@ function KpiDetailModal({
                   </tfoot>
                 </table>
               </div>
+              {indicators.length > 0 && (
+                <div className="flex flex-col gap-3 border-t border-[#becabd]/35 px-3.5 py-3 text-xs text-[#4d5f81] sm:flex-row sm:items-center sm:justify-between">
+                  <span>Menampilkan <b className="text-[#121b2e]">{(resolvedIndicatorPage - 1) * indicatorPageLength + 1}–{Math.min(resolvedIndicatorPage * indicatorPageLength, indicators.length)}</b> dari <b className="text-[#121b2e]">{indicators.length}</b> indikator</span>
+                  <Pagination
+                    currentPage={resolvedIndicatorPage}
+                    totalPages={indicatorTotalPages}
+                    onPageChange={setIndicatorPage}
+                    pageSize={indicatorPageSize}
+                    onPageSizeChange={(size) => { setIndicatorPageSize(size); setIndicatorPage(1); }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

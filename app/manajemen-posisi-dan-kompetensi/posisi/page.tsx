@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, FormEvent } from "react";
-import { Pagination } from "@/components/Pagination";
+import { Pagination, type PageSize } from "@/components/Pagination";
 import PosisiKompetensiShell, {
   usePosisiKompetensiRole,
 } from "@/components/posisi-kompetensi/PosisiKompetensiShell";
@@ -29,6 +29,8 @@ export interface PositionItem {
   id: string;
   nama_posisi?: string;
   name?: string;
+  id_departments?: string;
+  d1_departments?: { id: string; nama_departemen: string } | null;
   departemen?: string;
   department?: string;
   deskripsi_posisi?: string;
@@ -62,21 +64,22 @@ function getLokasi(pos: PositionItem) {
   return pos.location || "";
 }
 
-export const DEPARTMENTS = [
-  "Finance, Accounting & Tax",
-  "Human Capital & Culture",
-  "Commercial & Customer Success",
-] as const;
+interface DepartmentItem {
+  id: string;
+  nama_departemen: string;
+}
 
 function PosisiContent() {
   const { viewRole } = usePosisiKompetensiRole();
   const [positions, setPositions] = useState<PositionItem[]>([]);
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<PageSize>(10);
   const [toast, setToast] = useState<string>("");
 
   const hasActiveFilters = Boolean(
@@ -113,13 +116,20 @@ function PosisiContent() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/d1/positions?limit=100");
-      const json = await res.json();
-      if (json.success) {
-        setPositions(json.data.positions || []);
+      const [positionsRes, departmentsRes] = await Promise.all([
+        fetch("/api/d1/positions?limit=100"),
+        fetch("/api/d1/departments"),
+      ]);
+      const [positionsJson, departmentsJson] = await Promise.all([
+        positionsRes.json(),
+        departmentsRes.json(),
+      ]);
+      if (positionsJson.success) {
+        setPositions(positionsJson.data.positions || []);
       } else {
-        setError(json.error?.message || "Gagal memuat data posisi.");
+        setError(positionsJson.error?.message || "Gagal memuat data posisi.");
       }
+      if (departmentsJson.success) setDepartments(departmentsJson.data || []);
     } catch {
       setError("Tidak dapat terhubung ke server.");
     } finally {
@@ -144,7 +154,7 @@ function PosisiContent() {
         lokasi.includes(search.toLowerCase());
 
       const matchDept =
-        departmentFilter === "ALL" || getDepartemen(pos) === departmentFilter;
+        departmentFilter === "ALL" || pos.id_departments === departmentFilter;
       const matchStatus =
         statusFilter === "ALL" || getStatus(pos) === statusFilter;
       return matchSearch && matchDept && matchStatus;
@@ -156,9 +166,10 @@ function PosisiContent() {
     setCurrentPage(1);
   }, [search, departmentFilter, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPositions.length / 10));
+  const pageSize = itemsPerPage === "all" ? Math.max(1, filteredPositions.length) : itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(filteredPositions.length / pageSize));
   const page = Math.min(currentPage, totalPages);
-  const pagePositions = filteredPositions.slice((page - 1) * 10, page * 10);
+  const pagePositions = filteredPositions.slice((page - 1) * pageSize, page * pageSize);
 
   const allPageSelected =
     pagePositions.length > 0 &&
@@ -478,8 +489,8 @@ function PosisiContent() {
               className="bg-transparent font-semibold text-[#1e3765] outline-none cursor-pointer"
             >
               <option value="ALL">Semua Departemen</option>
-              {DEPARTMENTS.map((dept) => (
-                <option key={dept} value={dept}>{dept}</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>{department.nama_departemen}</option>
               ))}
             </select>
           </div>
@@ -713,8 +724,8 @@ function PosisiContent() {
             </table>
           </div>
           <div className="flex flex-col gap-3 border-t border-[#becabd]/35 px-4 py-3 text-xs text-[#4d5f81] sm:flex-row sm:items-center sm:justify-between">
-            <span>Menampilkan <b className="text-[#121b2e]">{filteredPositions.length ? (page - 1) * 10 + 1 : 0}–{Math.min(page * 10, filteredPositions.length)}</b> dari <b className="text-[#121b2e]">{filteredPositions.length}</b> posisi</span>
-            {filteredPositions.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} />}
+            <span>Menampilkan <b className="text-[#121b2e]">{filteredPositions.length ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, filteredPositions.length)}</b> dari <b className="text-[#121b2e]">{filteredPositions.length}</b> posisi</span>
+            {filteredPositions.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} pageSize={itemsPerPage} onPageSizeChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }} />}
           </div>
           </>
         )}
@@ -725,6 +736,7 @@ function PosisiContent() {
         <PositionFormModal
           title="Tambah Posisi Baru"
           isEdit={false}
+          departments={departments}
           onClose={() => setIsAddOpen(false)}
           onSubmit={(vals) => handleCreatePosition(vals)}
         />
@@ -735,9 +747,10 @@ function PosisiContent() {
         <PositionFormModal
           title="Edit Posisi"
           isEdit={true}
+          departments={departments}
           initialValues={{
             nama_posisi: getNamaPosisi(editItem),
-            departemen: getDepartemen(editItem),
+            id_departments: editItem.id_departments,
             deskripsi: getDeskripsi(editItem),
             status_posisi: getStatus(editItem) === "Inactive" ? "Inactive" : "Active",
             job_code: getJobCode(editItem),
@@ -1012,14 +1025,16 @@ function PositionFormModal({
   title,
   isEdit = false,
   initialValues,
+  departments,
   onClose,
   onSubmit,
 }: {
   title: string;
   isEdit?: boolean;
+  departments: DepartmentItem[];
   initialValues?: {
     nama_posisi?: string;
-    departemen?: string;
+    id_departments?: string;
     deskripsi?: string;
     job_code?: string;
     status_posisi?: "Active" | "Inactive" | "Deleted";
@@ -1030,7 +1045,7 @@ function PositionFormModal({
 }) {
   const [jobCode] = useState(initialValues?.job_code || "");
   const [namaPosisi, setNamaPosisi] = useState(initialValues?.nama_posisi || "");
-  const [departemen, setDepartemen] = useState(initialValues?.departemen || DEPARTMENTS[0]);
+  const [departmentId, setDepartmentId] = useState(initialValues?.id_departments || departments[0]?.id || "");
   const [deskripsi, setDeskripsi] = useState(initialValues?.deskripsi || "");
   const [statusPosisi, setStatusPosisi] = useState<"Active" | "Inactive">(
     initialValues?.status_posisi === "Inactive" ? "Inactive" : "Active"
@@ -1058,7 +1073,7 @@ function PositionFormModal({
     await onSubmit({
       ...(isEdit && jobCode ? { job_code: jobCode } : {}),
       nama_posisi: namaPosisi.trim(),
-      departemen,
+      id_departments: departmentId,
       deskripsi_posisi: deskripsi.trim() || undefined,
       status_posisi: isEdit ? statusPosisi : "Active",
       lokasi: lokasi || "HQ - Menara MTH",
@@ -1111,12 +1126,12 @@ function PositionFormModal({
               Departemen <span className="text-[#d64545]">*</span>
             </label>
             <select
-              value={departemen}
-              onChange={(e) => setDepartemen(e.target.value)}
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
               className="w-full rounded-lg border border-[#becabd]/60 bg-white px-3 py-2.5 outline-none focus:border-[#069494]"
             >
-              {DEPARTMENTS.map((dept) => (
-                <option key={dept} value={dept}>{dept}</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>{department.nama_departemen}</option>
               ))}
             </select>
           </div>

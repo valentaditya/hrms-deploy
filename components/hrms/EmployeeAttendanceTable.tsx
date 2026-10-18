@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Pagination from "@/components/Pagination";
+import Pagination, { type PageSize } from "@/components/Pagination";
 import HrmsStatusPill from "@/components/hrms/HrmsStatusPill";
 import type { EmployeeAttendance } from "@/types/employee";
-
-const ITEMS_PER_PAGE = 10;
 
 function formatDate(value: string | null) {
   if (!value) return "Belum tersedia";
@@ -28,9 +26,11 @@ function formatTime(value: string | null) {
 
 export default function EmployeeAttendanceTable({ attendances }: { attendances: EmployeeAttendance[] }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(attendances.length / ITEMS_PER_PAGE));
+  const [itemsPerPage, setItemsPerPage] = useState<PageSize>(10);
+  const pageSize = itemsPerPage === "all" ? Math.max(1, attendances.length) : itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(attendances.length / pageSize));
   const page = Math.min(currentPage, totalPages);
-  const pageAttendances = attendances.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const pageAttendances = attendances.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="overflow-hidden rounded-lg border border-[#D9E2FC]/70">
@@ -47,7 +47,7 @@ export default function EmployeeAttendanceTable({ attendances }: { attendances: 
           </thead>
           <tbody className="divide-y divide-[#D9E2FC]/60 text-slate-700">
             {pageAttendances.map((attendance, index) => (
-              <tr key={`${attendance.date ?? "attendance"}-${(page - 1) * ITEMS_PER_PAGE + index}`}>
+              <tr key={`${attendance.date ?? "attendance"}-${(page - 1) * pageSize + index}`}>
                 <td className="px-3 py-3 font-medium">{formatDate(attendance.date)}</td>
                 <td className="px-3 py-3">{formatTime(attendance.clock_in)}</td>
                 <td className="px-3 py-3">{formatTime(attendance.clock_out)}</td>
@@ -59,8 +59,8 @@ export default function EmployeeAttendanceTable({ attendances }: { attendances: 
         </table>
       </div>
       <div className="flex flex-col gap-3 border-t border-[#D9E2FC]/70 px-3 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-        <span>Menampilkan <b className="text-[#121B2E]">{(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, attendances.length)}</b> dari <b className="text-[#121B2E]">{attendances.length}</b> data</span>
-        {attendances.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} />}
+        <span>Menampilkan <b className="text-[#121B2E]">{attendances.length ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, attendances.length)}</b> dari <b className="text-[#121B2E]">{attendances.length}</b> data</span>
+        {attendances.length > 0 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} pageSize={itemsPerPage} onPageSizeChange={setItemsPerPage} />}
       </div>
     </div>
   );
